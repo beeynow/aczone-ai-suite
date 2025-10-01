@@ -1,0 +1,266 @@
+import { useState, useEffect } from "react";
+import { Outlet, Link, useLocation } from "react-router-dom";
+import {
+  MessageSquare,
+  ImageIcon,
+  Code,
+  Scissors,
+  Video,
+  Mail,
+  Globe,
+  Settings,
+  HelpCircle,
+  FileText,
+  FileCheck,
+  Menu,
+  X,
+  Bell,
+  Search,
+  Moon,
+  Sun,
+  ChevronDown,
+  Sparkles,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+
+const navigation = [
+  { name: "Dashboard", href: "/", icon: Sparkles },
+  { name: "Text Generator", href: "/text", icon: MessageSquare },
+  { name: "Image Generator", href: "/image", icon: ImageIcon, badge: "NEW" },
+  { name: "Code Generator", href: "/code", icon: Code },
+  { name: "Image Editor", href: "/editor", icon: Scissors },
+  { name: "Video Generator", href: "/video", icon: Video },
+  { name: "Email Generator", href: "/email", icon: Mail },
+  { name: "Website Generator", href: "/website", icon: Globe, badge: "BETA" },
+];
+
+const bottomNavigation = [
+  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Help & FAQ", href: "/help", icon: HelpCircle },
+  { name: "Release Notes", href: "/releases", icon: FileText },
+  { name: "Terms & Policy", href: "/terms", icon: FileCheck },
+];
+
+export default function Layout() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
+      <aside
+        className={`${
+          sidebarOpen ? "w-64" : "w-20"
+        } bg-card border-r border-border transition-all duration-300 flex flex-col`}
+      >
+        {/* Logo */}
+        <div className="h-16 flex items-center px-4 border-b border-border">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            {sidebarOpen && (
+              <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                AcZone
+              </span>
+            )}
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-4 px-2">
+          <div className="space-y-1">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link key={item.name} to={item.href}>
+                  <div
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-smooth ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    {sidebarOpen && (
+                      <>
+                        <span className="flex-1 text-sm font-medium">
+                          {item.name}
+                        </span>
+                        {item.badge && (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-border space-y-1">
+            {bottomNavigation.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link key={item.name} to={item.href}>
+                  <div
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-smooth ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    {sidebarOpen && (
+                      <span className="text-sm font-medium">{item.name}</span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Upgrade Button */}
+        {sidebarOpen && (
+          <div className="p-4 border-t border-border">
+            <Button className="w-full gradient-primary text-white hover:opacity-90">
+              Upgrade to Pro
+            </Button>
+          </div>
+        )}
+
+        {/* Theme Toggle */}
+        <div className="p-4 border-t border-border flex items-center justify-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDarkMode(false)}
+            className={!darkMode ? "bg-primary/10 text-primary" : ""}
+          >
+            <Sun className="w-4 h-4" />
+            {sidebarOpen && <span className="ml-2">Light</span>}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDarkMode(true)}
+            className={darkMode ? "bg-primary/10 text-primary" : ""}
+          >
+            <Moon className="w-4 h-4" />
+            {sidebarOpen && <span className="ml-2">Dark</span>}
+          </Button>
+        </div>
+
+        {/* Footer */}
+        {sidebarOpen && (
+          <div className="p-4 text-xs text-center text-muted-foreground border-t border-border">
+            © 2024 ac AcZone.
+          </div>
+        )}
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
+          <div className="flex items-center gap-4 flex-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </Button>
+
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search across tools..."
+                className="pl-10 bg-muted/50 border-muted"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="relative">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-2 hover:bg-muted"
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarFallback className="bg-gradient-primary text-white text-sm">
+                      AZ
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden md:block text-left">
+                    <div className="text-sm font-medium">acZone</div>
+                    <div className="text-xs text-muted-foreground">
+                      acZone@gmail.com
+                    </div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem>Billing</DropdownMenuItem>
+                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive">
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
