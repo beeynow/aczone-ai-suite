@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Help from "./pages/Help";
 import ReleaseNotes from "./pages/ReleaseNotes";
 import Terms from "./pages/Terms";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="text" element={<TextGenerator />} />
