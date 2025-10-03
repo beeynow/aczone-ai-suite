@@ -1,1 +1,13 @@
 project_id = "zhiiqdczslrnvlyflmke"
+
+[functions.interview-chat]
+verify_jwt = true
+
+[functions.text-to-speech]
+verify_jwt = true
+
+[functions.speech-to-text]
+verify_jwt = true
+
+[functions.generate-zego-token]
+verify_jwt = true

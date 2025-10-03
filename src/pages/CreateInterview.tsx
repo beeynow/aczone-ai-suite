@@ -1,0 +1,220 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CalendarIcon, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { format } from "date-fns";
+
+export default function CreateInterview() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [timing, setTiming] = useState<"now" | "later">("now");
+  const [scheduledDate, setScheduledDate] = useState<Date>();
+  const [formData, setFormData] = useState({
+    title: "",
+    type: "personal",
+    experience_level: "",
+    topic: "",
+    issue: "",
+    duration_minutes: 30,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.title || !formData.experience_level || !formData.topic) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('interviews')
+        .insert([
+          {
+            ...formData,
+            creator_id: user.id,
+            scheduled_time: timing === "later" && scheduledDate ? scheduledDate.toISOString() : null,
+            status: 'scheduled',
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Interview created successfully!");
+      navigate(`/interview/${data.id}`);
+    } catch (error) {
+      console.error('Error creating interview:', error);
+      toast.error("Failed to create interview");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <Button variant="ghost" onClick={() => navigate('/')} className="mb-4">
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Dashboard
+      </Button>
+
+      <Card className="p-6">
+        <h1 className="text-3xl font-bold mb-6">Create New Interview</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title">Interview Title *</Label>
+            <Input
+              id="title"
+              placeholder="e.g., Frontend Developer Interview"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+          </div>
+
+          {/* Timing */}
+          <div className="space-y-2">
+            <Label>When would you like to conduct this interview? *</Label>
+            <RadioGroup value={timing} onValueChange={(v) => setTiming(v as "now" | "later")}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="now" id="now" />
+                <Label htmlFor="now" className="cursor-pointer">Start Now</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="later" id="later" />
+                <Label htmlFor="later" className="cursor-pointer">Schedule for Later</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {timing === "later" && (
+            <div className="space-y-2">
+              <Label>Select Date and Time *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    disabled={(date) => date < new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Type */}
+          <div className="space-y-2">
+            <Label>Interview Type *</Label>
+            <RadioGroup value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="personal" id="personal" />
+                <Label htmlFor="personal" className="cursor-pointer">Personal (1-on-1 with AI)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="group" id="group" />
+                <Label htmlFor="group" className="cursor-pointer">Group (Multiple participants + AI)</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Experience Level */}
+          <div className="space-y-2">
+            <Label htmlFor="experience">Experience Level *</Label>
+            <Select value={formData.experience_level} onValueChange={(v) => setFormData({ ...formData, experience_level: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select experience level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>
+                <SelectItem value="mid">Mid Level (2-5 years)</SelectItem>
+                <SelectItem value="senior">Senior Level (5+ years)</SelectItem>
+                <SelectItem value="lead">Lead/Principal (8+ years)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Topic */}
+          <div className="space-y-2">
+            <Label htmlFor="topic">Interview Topic *</Label>
+            <Input
+              id="topic"
+              placeholder="e.g., React, System Design, Behavioral Questions"
+              value={formData.topic}
+              onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+              required
+            />
+          </div>
+
+          {/* Issue/Focus Area */}
+          <div className="space-y-2">
+            <Label htmlFor="issue">Specific Focus Area (Optional)</Label>
+            <Textarea
+              id="issue"
+              placeholder="Any specific areas you'd like to focus on or improve?"
+              value={formData.issue}
+              onChange={(e) => setFormData({ ...formData, issue: e.target.value })}
+              rows={3}
+            />
+          </div>
+
+          {/* Duration */}
+          <div className="space-y-2">
+            <Label htmlFor="duration">Duration (minutes) *</Label>
+            <Select 
+              value={formData.duration_minutes.toString()} 
+              onValueChange={(v) => setFormData({ ...formData, duration_minutes: parseInt(v) })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="15">15 minutes - $5</SelectItem>
+                <SelectItem value="30">30 minutes - $10</SelectItem>
+                <SelectItem value="45">45 minutes - $15</SelectItem>
+                <SelectItem value="60">60 minutes - $20</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Submit */}
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" onClick={() => navigate('/')} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={loading}>
+              {loading ? "Creating..." : "Create & Join Interview"}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  );
+}

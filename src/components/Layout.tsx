@@ -3,17 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import {
-  MessageSquare,
-  ImageIcon,
-  Code,
-  Scissors,
-  Video,
-  Mail,
-  Globe,
   Settings,
-  HelpCircle,
   FileText,
-  FileCheck,
   Menu,
   X,
   Bell,
@@ -23,6 +14,7 @@ import {
   ChevronDown,
   Sparkles,
   LogOut,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,21 +31,12 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Sparkles },
-  { name: "Text Generator", href: "/text", icon: MessageSquare },
-  { name: "Image Generator", href: "/image", icon: ImageIcon, badge: "NEW" },
-  { name: "Code Generator", href: "/code", icon: Code },
-  { name: "Image Editor", href: "/editor", icon: Scissors },
-  { name: "Video Generator", href: "/video", icon: Video },
-  { name: "Email Generator", href: "/email", icon: Mail },
-  { name: "Website Generator", href: "/website", icon: Globe, badge: "BETA" },
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Create Interview", href: "/create-interview", icon: FileText, badge: "NEW" },
 ];
 
 const bottomNavigation = [
   { name: "Settings", href: "/settings", icon: Settings },
-  { name: "Help & FAQ", href: "/help", icon: HelpCircle },
-  { name: "Release Notes", href: "/releases", icon: FileText },
-  { name: "Terms & Policy", href: "/terms", icon: FileCheck },
 ];
 
 export default function Layout() {
@@ -130,7 +113,7 @@ export default function Layout() {
             </div>
             {sidebarOpen && (
               <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                AcZone
+                TryInterview
               </span>
             )}
           </Link>
@@ -228,7 +211,7 @@ export default function Layout() {
         {/* Footer */}
         {sidebarOpen && (
           <div className="p-4 text-xs text-center text-muted-foreground border-t border-border">
-            © 2024 ac AcZone.
+            © 2025 TryInterview
           </div>
         )}
       </aside>
