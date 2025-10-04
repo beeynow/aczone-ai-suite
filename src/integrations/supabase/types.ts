@@ -233,6 +233,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_interview_creator: {
+        Args: { _interview_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_interview_participant: {
+        Args: { _interview_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user"
