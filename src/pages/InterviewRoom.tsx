@@ -28,7 +28,10 @@ export default function InterviewRoom() {
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -209,6 +212,75 @@ export default function InterviewRoom() {
     setShowRating(true);
   };
 
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          await transcribeAudio(audioBlob);
+          
+          // Stop all tracks
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+        toast.success('Recording started');
+      } catch (error) {
+        console.error('Error starting recording:', error);
+        toast.error('Failed to access microphone');
+      }
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    setLoading(true);
+    try {
+      // Convert blob to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      await new Promise((resolve) => {
+        reader.onloadend = resolve;
+      });
+
+      const base64Audio = (reader.result as string).split(',')[1];
+
+      // Call speech-to-text function
+      const { data, error } = await supabase.functions.invoke('speech-to-text', {
+        body: { audio: base64Audio }
+      });
+
+      if (error) throw error;
+
+      if (data?.text) {
+        setInput(data.text);
+        toast.success('Speech transcribed');
+      }
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      toast.error('Failed to transcribe speech');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const submitRating = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -263,11 +335,12 @@ export default function InterviewRoom() {
             {isVideoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
           </Button>
           <Button
-            variant="outline"
+            variant={isRecording ? "destructive" : "outline"}
             size="icon"
-            onClick={() => setIsAudioOn(!isAudioOn)}
+            onClick={toggleRecording}
+            disabled={loading}
           >
-            {isAudioOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </Button>
           <Button
             variant="destructive"
