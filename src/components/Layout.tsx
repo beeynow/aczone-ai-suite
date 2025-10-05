@@ -15,6 +15,7 @@ import {
   Sparkles,
   LogOut,
   Home,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
@@ -44,6 +46,7 @@ export default function Layout() {
   const [darkMode, setDarkMode] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -180,7 +183,10 @@ export default function Layout() {
         {/* Upgrade Button */}
         {sidebarOpen && (
           <div className="p-4 border-t border-border">
-            <Button className="w-full gradient-primary text-white hover:opacity-90">
+            <Button 
+              className="w-full gradient-primary text-white hover:opacity-90"
+              onClick={() => setShowUpgradeDialog(true)}
+            >
               Upgrade to Pro
             </Button>
           </div>
@@ -294,6 +300,112 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Upgrade Dialog */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center">Choose Your Plan</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-3 gap-6 py-6">
+            {/* Free Plan */}
+            <div className="border rounded-lg p-6 bg-card">
+              <h3 className="text-lg font-semibold mb-2">Free</h3>
+              <div className="mb-4">
+                <span className="text-3xl font-bold">₦0</span>
+                <span className="text-muted-foreground">/month</span>
+              </div>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>5 interviews per month</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Basic AI interviewer</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>15 minutes per interview</span>
+                </li>
+              </ul>
+              <Button variant="outline" className="w-full" disabled>
+                Current Plan
+              </Button>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="border-2 border-primary rounded-lg p-6 bg-card relative">
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary text-white">
+                Most Popular
+              </Badge>
+              <h3 className="text-lg font-semibold mb-2">Pro</h3>
+              <div className="mb-4">
+                <span className="text-3xl font-bold">₦5,000</span>
+                <span className="text-muted-foreground">/month</span>
+              </div>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Unlimited interviews</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Advanced AI interviewer</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>60 minutes per interview</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Video recording</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Priority support</span>
+                </li>
+              </ul>
+              <Button className="w-full gradient-primary text-white">
+                Upgrade to Pro
+              </Button>
+            </div>
+
+            {/* Enterprise Plan */}
+            <div className="border rounded-lg p-6 bg-card">
+              <h3 className="text-lg font-semibold mb-2">Enterprise</h3>
+              <div className="mb-4">
+                <span className="text-3xl font-bold">Custom</span>
+              </div>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Everything in Pro</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Custom AI models</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Team collaboration</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>API access</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary mt-0.5" />
+                  <span>Dedicated support</span>
+                </li>
+              </ul>
+              <Button variant="outline" className="w-full">
+                Contact Sales
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
