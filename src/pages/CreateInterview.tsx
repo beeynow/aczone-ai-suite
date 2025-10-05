@@ -33,12 +33,12 @@ export default function CreateInterview() {
 
   const getPriceForDuration = (minutes: number) => {
     const priceMap: Record<number, number> = {
-      15: 2000,
-      30: 4000,
-      45: 6000,
-      60: 8000,
+      15: 10,
+      30: 12,
+      45: 16,
+      60: 20,
     };
-    return priceMap[minutes] || 4000;
+    return priceMap[minutes] || 12;
   };
 
   useEffect(() => {
@@ -283,10 +283,10 @@ export default function CreateInterview() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="15">15 minutes - ₦2,000</SelectItem>
-                <SelectItem value="30">30 minutes - ₦4,000</SelectItem>
-                <SelectItem value="45">45 minutes - ₦6,000</SelectItem>
-                <SelectItem value="60">60 minutes - ₦8,000</SelectItem>
+                <SelectItem value="15">15 minutes - ₦10</SelectItem>
+                <SelectItem value="30">30 minutes - ₦12</SelectItem>
+                <SelectItem value="45">45 minutes - ₦16</SelectItem>
+                <SelectItem value="60">60 minutes - ₦20</SelectItem>
               </SelectContent>
             </Select>
           </div>
