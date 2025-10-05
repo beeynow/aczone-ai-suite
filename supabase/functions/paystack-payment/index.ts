@@ -29,7 +29,7 @@ serve(async (req) => {
         body: JSON.stringify({
           email,
           amount: amount * 100, // Convert to kobo (Paystack uses smallest currency unit)
-          currency: 'USD',
+          currency: 'NGN',
           callback_url: `${req.headers.get('origin')}/create-interview`,
         }),
       });

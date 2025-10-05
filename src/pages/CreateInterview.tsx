@@ -33,12 +33,12 @@ export default function CreateInterview() {
 
   const getPriceForDuration = (minutes: number) => {
     const priceMap: Record<number, number> = {
-      15: 5,
-      30: 10,
-      45: 15,
-      60: 20,
+      15: 2000,
+      30: 4000,
+      45: 6000,
+      60: 8000,
     };
-    return priceMap[minutes] || 10;
+    return priceMap[minutes] || 4000;
   };
 
   useEffect(() => {
@@ -283,10 +283,10 @@ export default function CreateInterview() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="15">15 minutes - $5</SelectItem>
-                <SelectItem value="30">30 minutes - $10</SelectItem>
-                <SelectItem value="45">45 minutes - $15</SelectItem>
-                <SelectItem value="60">60 minutes - $20</SelectItem>
+                <SelectItem value="15">15 minutes - ₦2,000</SelectItem>
+                <SelectItem value="30">30 minutes - ₦4,000</SelectItem>
+                <SelectItem value="45">45 minutes - ₦6,000</SelectItem>
+                <SelectItem value="60">60 minutes - ₦8,000</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -294,7 +294,7 @@ export default function CreateInterview() {
           {/* Payment Status */}
           {paymentVerified && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-green-800 text-sm">✓ Payment verified - ${getPriceForDuration(formData.duration_minutes)}</p>
+              <p className="text-green-800 text-sm">✓ Payment verified - ₦{getPriceForDuration(formData.duration_minutes).toLocaleString()}</p>
             </div>
           )}
 
