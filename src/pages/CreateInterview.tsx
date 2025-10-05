@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CalendarIcon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { format } from "date-fns";
 
 export default function CreateInterview() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [timing, setTiming] = useState<"now" | "later">("now");
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -27,12 +28,95 @@ export default function CreateInterview() {
     issue: "",
     duration_minutes: 30,
   });
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+
+  const getPriceForDuration = (minutes: number) => {
+    const priceMap: Record<number, number> = {
+      15: 5,
+      30: 10,
+      45: 15,
+      60: 20,
+    };
+    return priceMap[minutes] || 10;
+  };
+
+  useEffect(() => {
+    const reference = searchParams.get('reference');
+    if (reference) {
+      verifyPayment(reference);
+    }
+  }, [searchParams]);
+
+  const verifyPayment = async (reference: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('paystack-payment', {
+        body: { action: 'verify', reference }
+      });
+
+      if (error) throw error;
+
+      if (data?.status && data.data?.status === 'success') {
+        setPaymentReference(reference);
+        setPaymentVerified(true);
+        toast.success('Payment verified successfully!');
+      } else {
+        toast.error('Payment verification failed');
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast.error('Failed to verify payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initiatePayment = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user?.email) {
+      toast.error("You must be logged in");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const amount = getPriceForDuration(formData.duration_minutes);
+      
+      const { data, error } = await supabase.functions.invoke('paystack-payment', {
+        body: { 
+          action: 'initialize',
+          email: user.email,
+          amount: amount
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.status && data.data?.authorization_url) {
+        window.location.href = data.data.authorization_url;
+      } else {
+        toast.error('Failed to initialize payment');
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast.error('Failed to initiate payment');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title || !formData.experience_level || !formData.topic) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!paymentVerified) {
+      await initiatePayment();
       return;
     }
 
@@ -53,6 +137,9 @@ export default function CreateInterview() {
             creator_id: user.id,
             scheduled_time: timing === "later" && scheduledDate ? scheduledDate.toISOString() : null,
             status: 'scheduled',
+            payment_status: 'paid',
+            payment_reference: paymentReference,
+            amount_paid: getPriceForDuration(formData.duration_minutes),
           },
         ])
         .select()
@@ -204,13 +291,20 @@ export default function CreateInterview() {
             </Select>
           </div>
 
+          {/* Payment Status */}
+          {paymentVerified && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-green-800 text-sm">✓ Payment verified - ${getPriceForDuration(formData.duration_minutes)}</p>
+            </div>
+          )}
+
           {/* Submit */}
           <div className="flex gap-4">
             <Button type="button" variant="outline" onClick={() => navigate('/')} className="flex-1">
               Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? "Creating..." : "Create & Join Interview"}
+              {loading ? "Processing..." : paymentVerified ? "Create & Join Interview" : "Proceed to Payment"}
             </Button>
           </div>
         </form>

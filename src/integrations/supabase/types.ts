@@ -124,12 +124,15 @@ export type Database = {
       }
       interviews: {
         Row: {
+          amount_paid: number | null
           created_at: string | null
           creator_id: string
           duration_minutes: number
           experience_level: string
           id: string
           issue: string | null
+          payment_reference: string | null
+          payment_status: string | null
           room_id: string | null
           scheduled_time: string | null
           status: string
@@ -139,12 +142,15 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          amount_paid?: number | null
           created_at?: string | null
           creator_id: string
           duration_minutes?: number
           experience_level: string
           id?: string
           issue?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
           room_id?: string | null
           scheduled_time?: string | null
           status?: string
@@ -154,12 +160,15 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          amount_paid?: number | null
           created_at?: string | null
           creator_id?: string
           duration_minutes?: number
           experience_level?: string
           id?: string
           issue?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
           room_id?: string | null
           scheduled_time?: string | null
           status?: string
