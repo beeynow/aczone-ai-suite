@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Star, ArrowLeft } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Star, ArrowLeft, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import VoiceInterview from "@/components/VoiceInterview";
 
 interface Message {
   id: string;
@@ -29,6 +30,7 @@ export default function InterviewRoom() {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -312,6 +314,21 @@ export default function InterviewRoom() {
     );
   }
 
+  if (isVoiceMode) {
+    return (
+      <VoiceInterview
+        interviewId={id!}
+        topic={interview.topic}
+        experienceLevel={interview.experience_level}
+        durationMinutes={interview.duration_minutes}
+        onEnd={() => {
+          setIsVoiceMode(false);
+          setShowRating(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
@@ -327,6 +344,13 @@ export default function InterviewRoom() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="default"
+            onClick={() => setIsVoiceMode(true)}
+          >
+            <PhoneCall className="w-4 h-4 mr-2" />
+            Voice Call Mode
+          </Button>
           <Button
             variant="outline"
             size="icon"
