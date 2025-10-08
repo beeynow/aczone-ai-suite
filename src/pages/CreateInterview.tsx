@@ -141,7 +141,7 @@ export default function CreateInterview() {
             creator_id: user.id,
             scheduled_time: timing === "later" && scheduledDate ? scheduledDate.toISOString() : null,
             status: 'scheduled',
-            payment_status: formData.duration_minutes === 5 ? 'free' : 'paid',
+            payment_status: 'paid',
             payment_reference: paymentReference,
             amount_paid: getPriceForDuration(formData.duration_minutes),
           },
