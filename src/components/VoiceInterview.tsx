@@ -13,6 +13,14 @@ interface VoiceInterviewProps {
   onEnd: () => void;
 }
 
+// Extend Window for webkit prefix
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
+
 export default function VoiceInterview({
   interviewId,
   topic,
@@ -26,15 +34,46 @@ export default function VoiceInterview({
   const [conversationHistory, setConversationHistory] = useState<any[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<HTMLAudioElement[]>([]);
-  const isPlayingRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Initialize audio context
-    audioContextRef.current = new AudioContext();
+    // Initialize Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = async (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setIsUserSpeaking(false);
+      setIsRecording(false);
+      await processUserSpeech(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsUserSpeaking(false);
+      setIsRecording(false);
+      if (event.error !== 'no-speech') {
+        toast.error('Speech recognition error: ' + event.error);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsUserSpeaking(false);
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
     
     // Start with AI greeting
     startInterview();
@@ -53,8 +92,12 @@ export default function VoiceInterview({
 
     return () => {
       clearInterval(timer);
-      stopRecording();
-      audioContextRef.current?.close();
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
@@ -63,108 +106,74 @@ export default function VoiceInterview({
     await speakAIResponse("Hello sir! Welcome to your interview. I'm excited to discuss your experience with " + topic + ". Shall we begin?");
   };
 
-  const speakAIResponse = async (text: string) => {
-    setIsAISpeaking(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text, voice: 'en-US' }
-      });
-
-      if (error) throw error;
-
-      if (data?.audioContent) {
-        await playAudio(data.audioContent);
-      }
-    } catch (error) {
-      console.error('Error with TTS:', error);
-      toast.error('Failed to generate speech');
-    } finally {
-      setIsAISpeaking(false);
-    }
-  };
-
-  const playAudio = async (base64Audio: string): Promise<void> => {
+  const speakAIResponse = async (text: string): Promise<void> => {
     return new Promise((resolve) => {
-      const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
-      audioQueueRef.current.push(audio);
+      if (!window.speechSynthesis) {
+        toast.error('Text-to-speech not supported in this browser');
+        resolve();
+        return;
+      }
 
-      audio.onended = () => {
-        audioQueueRef.current.shift();
-        if (audioQueueRef.current.length === 0) {
-          isPlayingRef.current = false;
-        }
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      setIsAISpeaking(true);
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      
+      utterance.onend = () => {
+        setIsAISpeaking(false);
         resolve();
       };
 
-      if (!isPlayingRef.current) {
-        isPlayingRef.current = true;
-        audio.play();
-      }
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setIsAISpeaking(false);
+        toast.error('Failed to speak response');
+        resolve();
+      };
+
+      synthRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
     });
   };
 
-  const startRecording = async () => {
+  const startRecording = () => {
     if (isAISpeaking) {
       toast.error('Please wait for AI to finish speaking');
       return;
     }
 
+    if (!recognitionRef.current) {
+      toast.error('Speech recognition not initialized');
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await processUserSpeech(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
       setIsRecording(true);
       setIsUserSpeaking(true);
+      recognitionRef.current.start();
     } catch (error) {
-      console.error('Error starting recording:', error);
-      toast.error('Failed to access microphone');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+      console.error('Error starting recognition:', error);
+      toast.error('Failed to start speech recognition');
       setIsRecording(false);
       setIsUserSpeaking(false);
     }
   };
 
-  const processUserSpeech = async (audioBlob: Blob) => {
+  const stopRecording = () => {
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+      setIsUserSpeaking(false);
+    }
+  };
+
+  const processUserSpeech = async (userText: string) => {
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      
-      await new Promise((resolve) => {
-        reader.onloadend = resolve;
-      });
-
-      const base64Audio = (reader.result as string).split(',')[1];
-
-      // Transcribe speech
-      const { data: transcriptData, error: transcriptError } = await supabase.functions.invoke('speech-to-text', {
-        body: { audio: base64Audio }
-      });
-
-      if (transcriptError) throw transcriptError;
-
-      const userText = transcriptData?.text || '';
-      
       if (!userText.trim()) {
         toast.error('Could not understand speech, please try again');
         return;
@@ -216,6 +225,9 @@ export default function VoiceInterview({
 
   const endInterview = async () => {
     stopRecording();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     await supabase.from('interviews').update({ status: 'completed' }).eq('id', interviewId);
     onEnd();
   };
