@@ -33,6 +33,7 @@ export default function CreateInterview() {
 
   const getPriceForDuration = (minutes: number) => {
     const priceMap: Record<number, number> = {
+      5: 0,
       15: 2000,
       30: 4000,
       45: 6000,
@@ -115,7 +116,10 @@ export default function CreateInterview() {
       return;
     }
 
-    if (!paymentVerified) {
+    // Skip payment for 5-minute free interviews
+    if (formData.duration_minutes === 5) {
+      setPaymentVerified(true);
+    } else if (!paymentVerified) {
       await initiatePayment();
       return;
     }
@@ -137,7 +141,7 @@ export default function CreateInterview() {
             creator_id: user.id,
             scheduled_time: timing === "later" && scheduledDate ? scheduledDate.toISOString() : null,
             status: 'scheduled',
-            payment_status: 'paid',
+            payment_status: formData.duration_minutes === 5 ? 'free' : 'paid',
             payment_reference: paymentReference,
             amount_paid: getPriceForDuration(formData.duration_minutes),
           },
@@ -283,6 +287,7 @@ export default function CreateInterview() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="5">5 minutes - Free</SelectItem>
                 <SelectItem value="15">15 minutes - ₦2,000</SelectItem>
                 <SelectItem value="30">30 minutes - ₦4,000</SelectItem>
                 <SelectItem value="45">45 minutes - ₦6,000</SelectItem>
