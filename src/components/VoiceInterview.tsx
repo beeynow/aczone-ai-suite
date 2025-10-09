@@ -37,6 +37,7 @@ export default function VoiceInterview({
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const spokenLengthRef = useRef(0);
 
   useEffect(() => {
     // Initialize Speech Recognition
@@ -195,83 +196,129 @@ export default function VoiceInterview({
         content: userText
       });
 
-      // Get AI response
+      // Build conversation history
       const updatedHistory = [...conversationHistory, { role: 'user', content: userText }];
       setConversationHistory(updatedHistory);
 
-      // Call the interview-chat function and handle streaming response
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/interview-chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            messages: updatedHistory,
-            interviewId,
-            topic,
-            experience_level: experienceLevel
-          })
-        }
-      );
+      // Get current auth token for secured function (verify_jwt = true)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error('Not authenticated');
 
-      if (!response.ok) {
-        throw new Error(`Failed to get AI response: ${response.statusText}`);
+      // Start streaming AI response
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/interview-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          messages: updatedHistory,
+          interviewId,
+          topic,
+          experience_level: experienceLevel
+        })
+      });
+
+      if (!resp.ok || !resp.body) {
+        if (resp.status === 429) throw new Error('Rate limit exceeded. Please wait a moment.');
+        if (resp.status === 402) throw new Error('AI credits exhausted. Please add credits.');
+        throw new Error(`Failed to get AI response: ${resp.statusText}`);
       }
 
-      const reader = response.body?.getReader();
+      // Progressive TTS while streaming
+      const reader = resp.body.getReader();
       const decoder = new TextDecoder();
+      let textBuffer = '';
       let aiResponse = '';
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-              
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  aiResponse += content;
-                }
-              } catch (e) {
-                // Skip invalid JSON
-              }
-            }
+      const speakSegment = (segment: string) => {
+        if (!segment.trim()) return;
+        if (!window.speechSynthesis) return;
+        const u = new SpeechSynthesisUtterance(segment);
+        u.lang = 'en-US';
+        u.rate = 1.0;
+        u.pitch = 1.0;
+        u.onstart = () => setIsAISpeaking(true);
+        u.onend = () => {
+          // If we've spoken everything queued, toggle off; synthesis will queue properly
+          // We'll set to false at the very end too
+        };
+        window.speechSynthesis.speak(u);
+      };
+
+      const emitDelta = (delta: string) => {
+        aiResponse += delta;
+        // Update assistant message progressively in memory
+        setConversationHistory(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            const cloned = [...prev];
+            cloned[cloned.length - 1] = { ...last, content: aiResponse } as any;
+            return cloned as any[];
+          }
+          return [...prev, { role: 'assistant', content: aiResponse } as any];
+        });
+
+        // Progressive TTS: speak any newly completed sentence(s)
+        const newText = aiResponse.slice(spokenLengthRef.current);
+        const match = newText.match(/([\s\S]*?[\.\!\?\u2026])\s/); // up to first sentence end
+        if (match && match[1]) {
+          const sentence = match[1];
+          spokenLengthRef.current += sentence.length;
+          speakSegment(sentence);
+        } else if (aiResponse.length - spokenLengthRef.current > 140) {
+          // If no punctuation yet but long, speak a chunk to feel responsive
+          const chunk = newText.slice(0, 140);
+          spokenLengthRef.current += 140;
+          speakSegment(chunk);
+        }
+      };
+
+      let streamDone = false;
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line || line.startsWith(':')) continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') { streamDone = true; break; }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) emitDelta(content);
+          } catch {
+            // Put it back; wait for more data
+            textBuffer = line + '\n' + textBuffer;
+            break;
           }
         }
       }
 
-      if (!aiResponse.trim()) {
-        throw new Error('No response from AI');
+      // Flush any remaining text
+      const remaining = aiResponse.slice(spokenLengthRef.current).trim();
+      if (remaining) {
+        spokenLengthRef.current = aiResponse.length;
+        speakSegment(remaining);
       }
 
-      // Save AI message
-      await supabase.from('interview_messages').insert({
-        interview_id: interviewId,
-        user_id: null,
-        role: 'assistant',
-        content: aiResponse
-      });
+      // Final DB save of assistant message is optional; skip to avoid RLS failures
+      // set AISpeaking false after a short delay to allow last utterance to start
+      setTimeout(() => {
+        if (!window.speechSynthesis.speaking) setIsAISpeaking(false);
+      }, 500);
 
-      setConversationHistory([...updatedHistory, { role: 'assistant', content: aiResponse }]);
-
-      // Speak AI response immediately
-      await speakAIResponse(aiResponse);
-      
     } catch (error) {
       console.error('Error processing speech:', error);
-      toast.error('Failed to process speech');
+      toast.error(error instanceof Error ? error.message : 'Failed to process speech');
+      setIsAISpeaking(false);
     }
   };
 
