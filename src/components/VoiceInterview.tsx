@@ -54,6 +54,7 @@ export default function VoiceInterview({
 
     recognition.onresult = async (event: any) => {
       const transcript = event.results[0][0].transcript;
+      console.log('Speech recognized:', transcript);
       setIsUserSpeaking(false);
       setIsRecording(false);
       await processUserSpeech(transcript);
@@ -116,28 +117,35 @@ export default function VoiceInterview({
 
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
-
-      setIsAISpeaking(true);
       
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       
+      utterance.onstart = () => {
+        setIsAISpeaking(true);
+        console.log('AI started speaking');
+      };
+      
       utterance.onend = () => {
         setIsAISpeaking(false);
+        console.log('AI finished speaking');
         resolve();
       };
 
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         setIsAISpeaking(false);
-        toast.error('Failed to speak response');
         resolve();
       };
 
       synthRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+      
+      // Small delay to ensure state updates before speaking
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 100);
     });
   };
 
@@ -191,18 +199,62 @@ export default function VoiceInterview({
       const updatedHistory = [...conversationHistory, { role: 'user', content: userText }];
       setConversationHistory(updatedHistory);
 
-      const { data: aiData, error: aiError } = await supabase.functions.invoke('ai21-interview-chat', {
-        body: {
-          messages: updatedHistory,
-          interviewId,
-          topic,
-          experience_level: experienceLevel
+      // Call the interview-chat function and handle streaming response
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/interview-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            messages: updatedHistory,
+            interviewId,
+            topic,
+            experience_level: experienceLevel
+          })
         }
-      });
+      );
 
-      if (aiError) throw aiError;
+      if (!response.ok) {
+        throw new Error(`Failed to get AI response: ${response.statusText}`);
+      }
 
-      const aiResponse = aiData?.content || '';
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let aiResponse = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  aiResponse += content;
+                }
+              } catch (e) {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+      }
+
+      if (!aiResponse.trim()) {
+        throw new Error('No response from AI');
+      }
 
       // Save AI message
       await supabase.from('interview_messages').insert({
@@ -214,7 +266,7 @@ export default function VoiceInterview({
 
       setConversationHistory([...updatedHistory, { role: 'assistant', content: aiResponse }]);
 
-      // Speak AI response
+      // Speak AI response immediately
       await speakAIResponse(aiResponse);
       
     } catch (error) {
