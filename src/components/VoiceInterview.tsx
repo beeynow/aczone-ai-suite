@@ -188,14 +188,6 @@ export default function VoiceInterview({
         return;
       }
 
-      // Save user message
-      await supabase.from('interview_messages').insert({
-        interview_id: interviewId,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-        role: 'user',
-        content: userText
-      });
-
       // Build conversation history
       const updatedHistory = [...conversationHistory, { role: 'user', content: userText }];
       setConversationHistory(updatedHistory);
@@ -204,6 +196,16 @@ export default function VoiceInterview({
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       if (!accessToken) throw new Error('Not authenticated');
+
+      // Save user message in background (don't await)
+      supabase.from('interview_messages').insert({
+        interview_id: interviewId,
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        role: 'user',
+        content: userText
+      }).then(({ error }) => {
+        if (error) console.error('Failed to save user message:', error);
+      });
 
       // Start streaming AI response
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/interview-chat`, {
@@ -235,11 +237,11 @@ export default function VoiceInterview({
       const speakSegment = (segment: string) => {
         if (!segment.trim()) return;
         if (!window.speechSynthesis) return;
+        setIsAISpeaking(true);
         const u = new SpeechSynthesisUtterance(segment);
         u.lang = 'en-US';
-        u.rate = 1.0;
+        u.rate = 1.1; // Slightly faster for more responsive feel
         u.pitch = 1.0;
-        u.onstart = () => setIsAISpeaking(true);
         u.onend = () => {
           // Check if there are more utterances in the queue
           setTimeout(() => {
@@ -264,17 +266,17 @@ export default function VoiceInterview({
           return [...prev, { role: 'assistant', content: aiResponse } as any];
         });
 
-        // Progressive TTS: speak any newly completed sentence(s)
+        // Progressive TTS: speak any newly completed sentence(s) or chunks for instant response
         const newText = aiResponse.slice(spokenLengthRef.current);
         const match = newText.match(/([\s\S]*?[\.\!\?\u2026])\s/); // up to first sentence end
         if (match && match[1]) {
           const sentence = match[1];
           spokenLengthRef.current += sentence.length;
           speakSegment(sentence);
-        } else if (aiResponse.length - spokenLengthRef.current > 140) {
-          // If no punctuation yet but long, speak a chunk to feel responsive
-          const chunk = newText.slice(0, 140);
-          spokenLengthRef.current += 140;
+        } else if (aiResponse.length - spokenLengthRef.current > 80) {
+          // Reduced threshold for faster initial response - speak chunks sooner
+          const chunk = newText.slice(0, 80);
+          spokenLengthRef.current += 80;
           speakSegment(chunk);
         }
       };
