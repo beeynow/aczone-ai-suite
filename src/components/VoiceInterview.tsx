@@ -208,6 +208,7 @@ export default function VoiceInterview({
       });
 
       // Start streaming AI response
+      console.log('Sending request to AI with', updatedHistory.length, 'messages');
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/interview-chat`, {
         method: 'POST',
         headers: {
@@ -223,11 +224,17 @@ export default function VoiceInterview({
       });
 
       if (!resp.ok || !resp.body) {
+        console.error('AI response error:', resp.status, resp.statusText);
         if (resp.status === 429) throw new Error('Rate limit exceeded. Please wait a moment.');
         if (resp.status === 402) throw new Error('AI credits exhausted. Please add credits.');
         throw new Error(`Failed to get AI response: ${resp.statusText}`);
       }
 
+      console.log('Starting to stream AI response');
+      
+      // Reset spoken length for this new response
+      spokenLengthRef.current = 0;
+      
       // Progressive TTS while streaming
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -237,6 +244,7 @@ export default function VoiceInterview({
       const speakSegment = (segment: string) => {
         if (!segment.trim()) return;
         if (!window.speechSynthesis) return;
+        console.log('Speaking segment:', segment.substring(0, 50) + '...');
         setIsAISpeaking(true);
         const u = new SpeechSynthesisUtterance(segment);
         u.lang = 'en-US';
@@ -271,9 +279,9 @@ export default function VoiceInterview({
         const match = newText.match(/([\s\S]*?[\.\!\?\u2026])\s/); // up to first sentence end
         if (match && match[1]) {
           const sentence = match[1];
-          spokenLengthRef.current += sentence.length;
+          spokenLengthRef.current += sentence.length + 1; // +1 for the space
           speakSegment(sentence);
-        } else if (aiResponse.length - spokenLengthRef.current > 80) {
+        } else if (newText.length > 80) {
           // Reduced threshold for faster initial response - speak chunks sooner
           const chunk = newText.slice(0, 80);
           spokenLengthRef.current += 80;
@@ -311,9 +319,11 @@ export default function VoiceInterview({
       // Flush any remaining text
       const remaining = aiResponse.slice(spokenLengthRef.current).trim();
       if (remaining) {
-        spokenLengthRef.current = aiResponse.length;
+        console.log('Speaking remaining text:', remaining.substring(0, 50) + '...');
         speakSegment(remaining);
       }
+      
+      console.log('AI response complete. Total length:', aiResponse.length);
 
     } catch (error) {
       console.error('Error processing speech:', error);
