@@ -241,8 +241,12 @@ export default function VoiceInterview({
         u.pitch = 1.0;
         u.onstart = () => setIsAISpeaking(true);
         u.onend = () => {
-          // If we've spoken everything queued, toggle off; synthesis will queue properly
-          // We'll set to false at the very end too
+          // Check if there are more utterances in the queue
+          setTimeout(() => {
+            if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+              setIsAISpeaking(false);
+            }
+          }, 50);
         };
         window.speechSynthesis.speak(u);
       };
@@ -308,12 +312,6 @@ export default function VoiceInterview({
         spokenLengthRef.current = aiResponse.length;
         speakSegment(remaining);
       }
-
-      // Final DB save of assistant message is optional; skip to avoid RLS failures
-      // set AISpeaking false after a short delay to allow last utterance to start
-      setTimeout(() => {
-        if (!window.speechSynthesis.speaking) setIsAISpeaking(false);
-      }, 500);
 
     } catch (error) {
       console.error('Error processing speech:', error);
