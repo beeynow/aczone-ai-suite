@@ -32,6 +32,8 @@ export default function InterviewRoom() {
   const [feedback, setFeedback] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -213,6 +215,25 @@ export default function InterviewRoom() {
   const endInterview = async () => {
     await updateInterviewStatus('completed');
     setShowRating(true);
+    
+    // Generate AI analysis
+    setLoadingAnalysis(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-interview', {
+        body: {
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          topic: interview.topic,
+          experienceLevel: interview.experience_level
+        }
+      });
+
+      if (error) throw error;
+      setAiAnalysis(data);
+    } catch (error) {
+      console.error('Error analyzing interview:', error);
+    } finally {
+      setLoadingAnalysis(false);
+    }
   };
 
   const toggleRecording = async () => {
@@ -295,7 +316,12 @@ export default function InterviewRoom() {
             interview_id: id,
             user_id: user?.id,
             rating,
-            feedback
+            feedback,
+            ai_performance_score: aiAnalysis?.performance_score || null,
+            strengths: aiAnalysis?.strengths || null,
+            areas_to_improve: aiAnalysis?.areas_to_improve || null,
+            key_concepts: aiAnalysis?.key_concepts || null,
+            detailed_analysis: aiAnalysis?.detailed_analysis || null
           }
         ]);
 
@@ -322,6 +348,10 @@ export default function InterviewRoom() {
         topic={interview.topic}
         experienceLevel={interview.experience_level}
         durationMinutes={interview.duration_minutes}
+        learningGoals={interview.learning_goals}
+        currentKnowledge={interview.current_knowledge}
+        challenges={interview.specific_challenges}
+        preferredStyle={interview.preferred_style}
         onEnd={() => {
           setIsVoiceMode(false);
           setShowRating(true);
@@ -431,7 +461,12 @@ export default function InterviewRoom() {
             <DialogTitle>Interview Complete - Review & Rate</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-4">
-            <InterviewSummary messages={messages} rating={rating} />
+            <InterviewSummary 
+              messages={messages} 
+              rating={rating} 
+              aiAnalysis={aiAnalysis}
+              loading={loadingAnalysis}
+            />
             
             <div className="space-y-4">
               <div>

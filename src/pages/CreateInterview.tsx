@@ -27,6 +27,10 @@ export default function CreateInterview() {
     topic: "",
     issue: "",
     duration_minutes: 30,
+    learning_goals: "",
+    current_knowledge: "",
+    specific_challenges: "",
+    preferred_style: "balanced",
   });
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
@@ -111,7 +115,7 @@ export default function CreateInterview() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.experience_level || !formData.topic) {
+    if (!formData.title || !formData.experience_level || !formData.topic || !formData.learning_goals) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -264,16 +268,72 @@ export default function CreateInterview() {
             />
           </div>
 
+          {/* Learning Goals */}
+          <div className="space-y-2">
+            <Label htmlFor="learning_goals">What are your learning goals? *</Label>
+            <Textarea
+              id="learning_goals"
+              placeholder="e.g., Master React hooks, understand state management patterns, improve problem-solving skills"
+              value={formData.learning_goals}
+              onChange={(e) => setFormData({ ...formData, learning_goals: e.target.value })}
+              rows={2}
+              required
+            />
+          </div>
+
+          {/* Current Knowledge */}
+          <div className="space-y-2">
+            <Label htmlFor="current_knowledge">What do you already know about this topic?</Label>
+            <Textarea
+              id="current_knowledge"
+              placeholder="Briefly describe your current understanding and what you've learned so far"
+              value={formData.current_knowledge}
+              onChange={(e) => setFormData({ ...formData, current_knowledge: e.target.value })}
+              rows={2}
+            />
+          </div>
+
+          {/* Specific Challenges */}
+          <div className="space-y-2">
+            <Label htmlFor="specific_challenges">What specific challenges are you facing?</Label>
+            <Textarea
+              id="specific_challenges"
+              placeholder="e.g., Struggling with async concepts, need help with component architecture, want to improve debugging skills"
+              value={formData.specific_challenges}
+              onChange={(e) => setFormData({ ...formData, specific_challenges: e.target.value })}
+              rows={2}
+            />
+          </div>
+
           {/* Issue/Focus Area */}
           <div className="space-y-2">
-            <Label htmlFor="issue">Specific Focus Area (Optional)</Label>
+            <Label htmlFor="issue">Additional Focus Areas (Optional)</Label>
             <Textarea
               id="issue"
-              placeholder="Any specific areas you'd like to focus on or improve?"
+              placeholder="Any other specific areas you'd like to focus on or improve?"
               value={formData.issue}
               onChange={(e) => setFormData({ ...formData, issue: e.target.value })}
-              rows={3}
+              rows={2}
             />
+          </div>
+
+          {/* Preferred Learning Style */}
+          <div className="space-y-2">
+            <Label htmlFor="preferred_style">Preferred Learning Style</Label>
+            <Select 
+              value={formData.preferred_style} 
+              onValueChange={(v) => setFormData({ ...formData, preferred_style: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="conceptual">Conceptual (Theory-focused)</SelectItem>
+                <SelectItem value="practical">Practical (Example-driven)</SelectItem>
+                <SelectItem value="balanced">Balanced (Mix of both)</SelectItem>
+                <SelectItem value="interactive">Interactive (Question & Answer)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Duration */}

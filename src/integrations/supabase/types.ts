@@ -86,30 +86,45 @@ export type Database = {
       }
       interview_ratings: {
         Row: {
+          ai_performance_score: number | null
+          areas_to_improve: string[] | null
           created_at: string | null
+          detailed_analysis: string | null
           feedback: string | null
           id: string
           interview_id: string
+          key_concepts: string[] | null
           progress_notes: string | null
           rating: number
+          strengths: string[] | null
           user_id: string
         }
         Insert: {
+          ai_performance_score?: number | null
+          areas_to_improve?: string[] | null
           created_at?: string | null
+          detailed_analysis?: string | null
           feedback?: string | null
           id?: string
           interview_id: string
+          key_concepts?: string[] | null
           progress_notes?: string | null
           rating: number
+          strengths?: string[] | null
           user_id: string
         }
         Update: {
+          ai_performance_score?: number | null
+          areas_to_improve?: string[] | null
           created_at?: string | null
+          detailed_analysis?: string | null
           feedback?: string | null
           id?: string
           interview_id?: string
+          key_concepts?: string[] | null
           progress_notes?: string | null
           rating?: number
+          strengths?: string[] | null
           user_id?: string
         }
         Relationships: [
@@ -127,14 +142,18 @@ export type Database = {
           amount_paid: number | null
           created_at: string | null
           creator_id: string
+          current_knowledge: string | null
           duration_minutes: number
           experience_level: string
           id: string
           issue: string | null
+          learning_goals: string | null
           payment_reference: string | null
           payment_status: string | null
+          preferred_style: string | null
           room_id: string | null
           scheduled_time: string | null
+          specific_challenges: string | null
           status: string
           title: string
           topic: string
@@ -145,14 +164,18 @@ export type Database = {
           amount_paid?: number | null
           created_at?: string | null
           creator_id: string
+          current_knowledge?: string | null
           duration_minutes?: number
           experience_level: string
           id?: string
           issue?: string | null
+          learning_goals?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          preferred_style?: string | null
           room_id?: string | null
           scheduled_time?: string | null
+          specific_challenges?: string | null
           status?: string
           title: string
           topic: string
@@ -163,14 +186,18 @@ export type Database = {
           amount_paid?: number | null
           created_at?: string | null
           creator_id?: string
+          current_knowledge?: string | null
           duration_minutes?: number
           experience_level?: string
           id?: string
           issue?: string | null
+          learning_goals?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          preferred_style?: string | null
           room_id?: string | null
           scheduled_time?: string | null
+          specific_challenges?: string | null
           status?: string
           title?: string
           topic?: string

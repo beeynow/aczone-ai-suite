@@ -11,6 +11,10 @@ interface VoiceInterviewProps {
   experienceLevel: string;
   durationMinutes: number;
   onEnd: () => void;
+  learningGoals?: string;
+  currentKnowledge?: string;
+  challenges?: string;
+  preferredStyle?: string;
 }
 
 // Extend Window for webkit prefix
@@ -26,13 +30,19 @@ export default function VoiceInterview({
   topic,
   experienceLevel,
   durationMinutes,
-  onEnd
+  onEnd,
+  learningGoals,
+  currentKnowledge,
+  challenges,
+  preferredStyle
 }: VoiceInterviewProps) {
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
   const [conversationHistory, setConversationHistory] = useState<any[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [userName, setUserName] = useState<string>('');
+  const [hasStarted, setHasStarted] = useState(false);
   
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -77,8 +87,8 @@ export default function VoiceInterview({
 
     recognitionRef.current = recognition;
     
-    // Start with AI greeting
-    startInterview();
+    // Load interview data and start
+    loadInterviewData();
     
     // Start timer countdown
     const timer = setInterval(() => {
@@ -103,9 +113,23 @@ export default function VoiceInterview({
     };
   }, []);
 
-  const startInterview = async () => {
-    // Load previous messages from database
+  const loadInterviewData = async () => {
     try {
+      // Get user profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile?.full_name) {
+          setUserName(profile.full_name);
+        }
+      }
+
+      // Load previous messages from database
       const { data: previousMessages } = await supabase
         .from('interview_messages')
         .select('role, content')
@@ -113,16 +137,25 @@ export default function VoiceInterview({
         .order('created_at', { ascending: true });
 
       if (previousMessages && previousMessages.length > 0) {
-        // Continue from previous conversation
+        // Continue from previous conversation - load messages but don't speak
         setConversationHistory(previousMessages);
-        await speakAIResponse("Welcome back! I'm Beeynow, your interview coach. Let's continue where we left off. Are you ready to proceed?");
+        setHasStarted(true);
+        console.log('Loaded', previousMessages.length, 'previous messages');
+        toast.success('Continuing your interview session');
       } else {
-        // Start fresh
-        await speakAIResponse("Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with " + topic + ". Let's begin this journey together. Are you ready?");
+        // Start fresh with greeting
+        setHasStarted(false);
+        const greeting = userName 
+          ? `Hello ${userName}! I'm Beeynow, your friendly interview coach. I'm excited to help you achieve your goals with ${topic}. Let's begin this journey together. Are you ready?`
+          : `Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with ${topic}. Let's begin this journey together. Are you ready?`;
+        await speakAIResponse(greeting);
+        setHasStarted(true);
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
-      await speakAIResponse("Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with " + topic + ". Let's begin!");
+      console.error('Error loading interview data:', error);
+      const greeting = `Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with ${topic}. Let's begin!`;
+      await speakAIResponse(greeting);
+      setHasStarted(true);
     }
   };
 
@@ -237,7 +270,12 @@ export default function VoiceInterview({
           messages: updatedHistory,
           interviewId,
           topic,
-          experience_level: experienceLevel
+          experience_level: experienceLevel,
+          userName,
+          learningGoals,
+          currentKnowledge,
+          challenges,
+          preferredStyle
         })
       });
 
@@ -342,6 +380,19 @@ export default function VoiceInterview({
       }
       
       console.log('AI response complete. Total length:', aiResponse.length);
+
+      // Save AI response to database in background
+      if (aiResponse.trim()) {
+        supabase.from('interview_messages').insert({
+          interview_id: interviewId,
+          user_id: null,
+          role: 'assistant',
+          content: aiResponse
+        }).then(({ error }) => {
+          if (error) console.error('Failed to save AI message:', error);
+          else console.log('AI message saved successfully');
+        });
+      }
 
     } catch (error) {
       console.error('Error processing speech:', error);
