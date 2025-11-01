@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import VoiceInterview from "@/components/VoiceInterview";
+import InterviewSummary from "@/components/InterviewSummary";
 
 interface Message {
   id: string;
@@ -425,35 +426,44 @@ export default function InterviewRoom() {
 
       {/* Rating Dialog */}
       <Dialog open={showRating} onOpenChange={setShowRating}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Rate Your Interview Experience</DialogTitle>
+            <DialogTitle>Interview Complete - Review & Rate</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setRating(star)}
-                  className="transition-transform hover:scale-110"
-                >
-                  <Star
-                    className={`w-8 h-8 ${
-                      star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                    }`}
-                  />
-                </button>
-              ))}
+          <div className="space-y-6 py-4">
+            <InterviewSummary messages={messages} rating={rating} />
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium mb-2">Rate Your Experience with Beeynow</p>
+                <div className="flex justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <Textarea
+                placeholder="Share your feedback about the interview session (optional)"
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                rows={4}
+              />
+              
+              <Button onClick={submitRating} className="w-full" disabled={rating === 0}>
+                Submit & Return to Dashboard
+              </Button>
             </div>
-            <Textarea
-              placeholder="Share your feedback (optional)"
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              rows={4}
-            />
-            <Button onClick={submitRating} className="w-full" disabled={rating === 0}>
-              Submit & Return to Dashboard
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

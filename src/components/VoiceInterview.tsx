@@ -104,8 +104,26 @@ export default function VoiceInterview({
   }, []);
 
   const startInterview = async () => {
-    // AI greeting
-    await speakAIResponse("Hello sir! Welcome to your interview. I'm excited to discuss your experience with " + topic + ". Shall we begin?");
+    // Load previous messages from database
+    try {
+      const { data: previousMessages } = await supabase
+        .from('interview_messages')
+        .select('role, content')
+        .eq('interview_id', interviewId)
+        .order('created_at', { ascending: true });
+
+      if (previousMessages && previousMessages.length > 0) {
+        // Continue from previous conversation
+        setConversationHistory(previousMessages);
+        await speakAIResponse("Welcome back! I'm Beeynow, your interview coach. Let's continue where we left off. Are you ready to proceed?");
+      } else {
+        // Start fresh
+        await speakAIResponse("Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with " + topic + ". Let's begin this journey together. Are you ready?");
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      await speakAIResponse("Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with " + topic + ". Let's begin!");
+    }
   };
 
   const speakAIResponse = async (text: string): Promise<void> => {
@@ -360,7 +378,7 @@ export default function VoiceInterview({
               )}
             </div>
             <div>
-              <h3 className="text-lg font-semibold">AI Interviewer</h3>
+              <h3 className="text-lg font-semibold">Beeynow - Your AI Coach</h3>
               <p className="text-sm text-muted-foreground">
                 {isAISpeaking ? 'Speaking...' : 'Listening...'}
               </p>
