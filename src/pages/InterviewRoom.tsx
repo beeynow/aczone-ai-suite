@@ -38,6 +38,8 @@ export default function InterviewRoom() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  const [elapsedTime, setElapsedTime] = useState(0);
+
   useEffect(() => {
     if (id) {
       fetchInterview();
@@ -50,6 +52,25 @@ export default function InterviewRoom() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Timer with auto-end at 5 minutes (300 seconds)
+  useEffect(() => {
+    if (interview?.status === 'in_progress') {
+      const timer = setInterval(() => {
+        setElapsedTime(prev => {
+          const newTime = prev + 1;
+          // Auto-end at 5 minutes (300 seconds) for free plan
+          if (newTime >= 300) {
+            endInterview();
+            clearInterval(timer);
+            return 300;
+          }
+          return newTime;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [interview?.status]);
 
   const fetchInterview = async () => {
     try {
@@ -373,6 +394,12 @@ export default function InterviewRoom() {
             <h2 className="font-semibold">{interview.title}</h2>
             <p className="text-sm text-muted-foreground">{interview.topic}</p>
           </div>
+          <div className="ml-4 px-4 py-2 bg-primary/10 rounded-md">
+            <p className="text-xs text-muted-foreground">Time</p>
+            <p className={`text-lg font-bold ${elapsedTime >= 240 ? 'text-destructive' : 'text-foreground'}`}>
+              {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')} / 5:00
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -470,7 +497,7 @@ export default function InterviewRoom() {
             
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium mb-2">Rate Your Experience with Beeynow</p>
+                <p className="text-sm font-medium mb-2">Rate Your Experience with Rufaida</p>
                 <div className="flex justify-center gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button

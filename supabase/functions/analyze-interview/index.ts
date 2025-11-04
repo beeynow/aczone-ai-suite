@@ -26,15 +26,15 @@ Topic: ${topic}
 Experience Level: ${experienceLevel}
 
 Conversation:
-${messages.map((m: any) => `${m.role === 'user' ? 'Candidate' : 'Beeynow'}: ${m.content}`).join('\n\n')}
+${messages.map((m: any) => `${m.role === 'user' ? 'Candidate' : 'Rufaida'}: ${m.content}`).join('\n\n')}
 
 Provide a JSON response with:
 {
   "performance_score": <number 1-10>,
-  "strengths": [<array of 3-5 specific strengths>],
-  "areas_to_improve": [<array of 3-5 areas that need work>],
-  "key_concepts": [<array of 3-5 main concepts covered>],
-  "detailed_analysis": "<2-3 paragraph detailed analysis of performance>"
+  "strengths": [<array of 3-5 specific strengths demonstrated by the candidate>],
+  "areas_to_improve": [<array of 3-5 specific areas where the candidate needs improvement>],
+  "key_concepts": [<array of 3-5 essential concepts that the candidate must master for ${topic}>],
+  "detailed_analysis": "<2-3 paragraph detailed analysis: 1) Overall performance assessment, 2) Learning progress and understanding depth, 3) Specific actionable recommendations for improvement>"
 }`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -46,7 +46,7 @@ Provide a JSON response with:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are an expert interview evaluator. Provide constructive, encouraging feedback in JSON format." },
+          { role: "system", content: "You are Rufaida, an expert AI coaching evaluator with deep knowledge of learning psychology and professional development. Provide constructive, encouraging, and highly actionable feedback in JSON format that helps learners understand exactly what they did well and what they need to focus on next." },
           { role: "user", content: analysisPrompt }
         ],
         response_format: { type: "json_object" }

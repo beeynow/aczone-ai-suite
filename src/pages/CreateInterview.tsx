@@ -120,14 +120,6 @@ export default function CreateInterview() {
       return;
     }
 
-    // Skip payment for 5-minute free interviews
-    if (formData.duration_minutes === 5) {
-      setPaymentVerified(true);
-    } else if (!paymentVerified) {
-      await initiatePayment();
-      return;
-    }
-
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -137,17 +129,42 @@ export default function CreateInterview() {
         return;
       }
 
+      // Check weekly interview limit (1 per week for free plan)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const { data: recentInterviews, error: countError } = await supabase
+        .from("interviews")
+        .select("id")
+        .eq("creator_id", user.id)
+        .gte("created_at", oneWeekAgo.toISOString());
+
+      if (countError) throw countError;
+
+      if (recentInterviews && recentInterviews.length >= 1) {
+        toast.error("Free Plan Limit: You can create 1 interview per week. Upgrade for unlimited access!");
+        return;
+      }
+
+      // Free plan: fixed at 5 minutes
+      const duration = 5;
+
       const { data, error } = await supabase
         .from('interviews')
         .insert([
           {
-            ...formData,
-            creator_id: user.id,
+            title: formData.title,
+            type: formData.type,
+            topic: formData.topic,
+            experience_level: formData.experience_level,
+            duration_minutes: duration,
             scheduled_time: timing === "later" && scheduledDate ? scheduledDate.toISOString() : null,
+            creator_id: user.id,
             status: 'scheduled',
-            payment_status: 'paid',
-            payment_reference: paymentReference,
-            amount_paid: getPriceForDuration(formData.duration_minutes),
+            learning_goals: formData.learning_goals,
+            current_knowledge: formData.current_knowledge,
+            specific_challenges: formData.specific_challenges,
+            preferred_style: formData.preferred_style,
           },
         ])
         .select()
@@ -155,7 +172,7 @@ export default function CreateInterview() {
 
       if (error) throw error;
 
-      toast.success("Interview created successfully!");
+      toast.success("Interview created successfully! (5-minute free plan session)");
       navigate(`/interview/${data.id}`);
     } catch (error) {
       console.error('Error creating interview:', error);
@@ -338,30 +355,14 @@ export default function CreateInterview() {
 
           {/* Duration */}
           <div className="space-y-2">
-            <Label htmlFor="duration">Duration (minutes) *</Label>
-            <Select 
-              value={formData.duration_minutes.toString()} 
-              onValueChange={(v) => setFormData({ ...formData, duration_minutes: parseInt(v) })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 minutes - Free</SelectItem>
-                <SelectItem value="15">15 minutes - ₦2,000</SelectItem>
-                <SelectItem value="30">30 minutes - ₦4,000</SelectItem>
-                <SelectItem value="45">45 minutes - ₦6,000</SelectItem>
-                <SelectItem value="60">60 minutes - ₦8,000</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Payment Status */}
-          {paymentVerified && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-green-800 text-sm">✓ Payment verified - ₦{getPriceForDuration(formData.duration_minutes).toLocaleString()}</p>
+            <Label>Duration</Label>
+            <div className="p-3 bg-muted rounded-md border">
+              <p className="text-sm font-medium">5 minutes (Free Plan)</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Upgrade for longer sessions: 15 min, 30 min, 45 min, or 60 min
+              </p>
             </div>
-          )}
+          </div>
 
           {/* Submit */}
           <div className="flex gap-4">
@@ -369,7 +370,7 @@ export default function CreateInterview() {
               Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? "Processing..." : paymentVerified ? "Create & Join Interview" : "Proceed to Payment"}
+              {loading ? "Creating..." : "Create Interview Session (Free)"}
             </Button>
           </div>
         </form>

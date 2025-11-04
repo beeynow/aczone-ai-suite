@@ -146,14 +146,14 @@ export default function VoiceInterview({
         // Start fresh with greeting
         setHasStarted(false);
         const greeting = userName 
-          ? `Hello ${userName}! I'm Beeynow, your friendly interview coach. I'm excited to help you achieve your goals with ${topic}. Let's begin this journey together. Are you ready?`
-          : `Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with ${topic}. Let's begin this journey together. Are you ready?`;
+          ? `Hello ${userName}! I'm Rufaida, your expert AI coaching companion. I'm excited to guide you on a deep learning journey with ${topic}. Let's unlock your potential together. Are you ready?`
+          : `Hello! I'm Rufaida, your expert AI coaching companion. I'm excited to guide you through ${topic}. Let's unlock your potential together. Are you ready?`;
         await speakAIResponse(greeting);
         setHasStarted(true);
       }
     } catch (error) {
       console.error('Error loading interview data:', error);
-      const greeting = `Hello! I'm Beeynow, your friendly interview coach. I'm excited to help you with ${topic}. Let's begin!`;
+      const greeting = `Hello! I'm Rufaida, your expert AI coaching companion. I'm excited to help you with ${topic}. Let's begin!`;
       await speakAIResponse(greeting);
       setHasStarted(true);
     }
@@ -429,7 +429,7 @@ export default function VoiceInterview({
               )}
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Beeynow - Your AI Coach</h3>
+              <h3 className="text-lg font-semibold">Rufaida - Your AI Coach</h3>
               <p className="text-sm text-muted-foreground">
                 {isAISpeaking ? 'Speaking...' : 'Listening...'}
               </p>
