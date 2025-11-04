@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import CreateInterview from "./pages/CreateInterview";
 import InterviewRoom from "./pages/InterviewRoom";
 import Settings from "./pages/Settings";
+import Certificates from "./pages/Certificates";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="create-interview" element={<CreateInterview />} />
             <Route path="interview/:id" element={<InterviewRoom />} />
+            <Route path="certificates" element={<Certificates />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />

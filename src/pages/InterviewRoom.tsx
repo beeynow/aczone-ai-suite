@@ -329,6 +329,7 @@ export default function InterviewRoom() {
   const submitRating = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       
       await supabase
         .from('interview_ratings')
@@ -345,6 +346,31 @@ export default function InterviewRoom() {
             detailed_analysis: aiAnalysis?.detailed_analysis || null
           }
         ]);
+
+      // Generate certificate if performance is high enough (score >= 7/10)
+      const performanceScore = aiAnalysis?.performance_score || 0;
+      if (performanceScore >= 7) {
+        let achievementType = "Certificate of Completion";
+        if (performanceScore >= 9) {
+          achievementType = "Certificate of Excellence";
+        } else if (performanceScore >= 8) {
+          achievementType = "Certificate of Mastery";
+        }
+
+        await supabase.from('certificates').insert({
+          user_id: user.id,
+          interview_id: id,
+          achievement_type: achievementType,
+          topic: interview.topic,
+          score: performanceScore,
+          certificate_data: {
+            strengths: aiAnalysis?.strengths,
+            key_concepts: aiAnalysis?.key_concepts,
+          }
+        });
+
+        toast.success(`🎉 Congratulations! You earned a ${achievementType}!`);
+      }
 
       toast.success('Thank you for your feedback!');
       navigate('/');
@@ -375,7 +401,7 @@ export default function InterviewRoom() {
         preferredStyle={interview.preferred_style}
         onEnd={() => {
           setIsVoiceMode(false);
-          setShowRating(true);
+          endInterview();
         }}
       />
     );

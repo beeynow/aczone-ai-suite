@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Calendar, Users, User, Clock } from "lucide-react";
+import { Plus, Calendar, Users, User, Clock, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,9 +24,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [certificateCount, setCertificateCount] = useState(0);
 
   useEffect(() => {
     fetchInterviews();
+    fetchCertificateCount();
   }, []);
 
   const fetchInterviews = async () => {
@@ -43,6 +45,23 @@ export default function Dashboard() {
       toast.error('Failed to load interviews');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCertificateCount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count, error } = await supabase
+        .from('certificates')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setCertificateCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching certificate count:', error);
     }
   };
 
@@ -74,6 +93,15 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/certificates')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Certificates Earned</p>
+              <p className="text-2xl font-bold">{certificateCount}</p>
+            </div>
+            <Award className="w-8 h-8 text-yellow-500" />
+          </div>
+        </Card>
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>

@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      certificates: {
+        Row: {
+          achievement_type: string
+          certificate_data: Json | null
+          created_at: string
+          id: string
+          interview_id: string | null
+          issued_date: string
+          score: number
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          achievement_type: string
+          certificate_data?: Json | null
+          created_at?: string
+          id?: string
+          interview_id?: string | null
+          issued_date?: string
+          score: number
+          topic: string
+          user_id: string
+        }
+        Update: {
+          achievement_type?: string
+          certificate_data?: Json | null
+          created_at?: string
+          id?: string
+          interview_id?: string | null
+          issued_date?: string
+          score?: number
+          topic?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_messages: {
         Row: {
           content: string
