@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import Certificate from "@/components/Certificate";
+import CollectionProgress from "@/components/CollectionProgress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CertificateData {
   id: string;
@@ -17,15 +19,36 @@ interface CertificateData {
   certificate_data: any;
 }
 
+interface CollectionData {
+  id: string;
+  name: string;
+  description: string;
+  badge_icon: string;
+  topic_pattern: string;
+  min_certificates: number;
+  min_avg_score: number;
+}
+
+interface UserCollectionCertificate {
+  id: string;
+  collection_id: string;
+  earned_date: string;
+  avg_score: number;
+  certificate_ids: string[];
+}
+
 export default function Certificates() {
   const navigate = useNavigate();
   const [certificates, setCertificates] = useState<CertificateData[]>([]);
+  const [collections, setCollections] = useState<CollectionData[]>([]);
+  const [userCollections, setUserCollections] = useState<UserCollectionCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
   const [userName, setUserName] = useState("Learner");
 
   useEffect(() => {
     fetchCertificates();
+    fetchCollections();
     fetchUserName();
   }, []);
 
@@ -66,11 +89,91 @@ export default function Certificates() {
       if (error) throw error;
 
       setCertificates(data || []);
+      
+      // Check and award collection certificates
+      await checkCollectionCompletions(data || []);
     } catch (error) {
       console.error("Error fetching certificates:", error);
       toast.error("Failed to load certificates");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCollections = async () => {
+    try {
+      const { data: collectionsData, error: collectionsError } = await supabase
+        .from('certificate_collections')
+        .select('*')
+        .order('name');
+
+      if (collectionsError) throw collectionsError;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userCollectionsData, error: userCollectionsError } = await supabase
+        .from('user_collection_certificates')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (userCollectionsError) throw userCollectionsError;
+
+      setCollections(collectionsData || []);
+      setUserCollections(userCollectionsData || []);
+    } catch (error) {
+      console.error("Error fetching collections:", error);
+    }
+  };
+
+  const checkCollectionCompletions = async (userCertificates: CertificateData[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: collectionsData } = await supabase
+        .from('certificate_collections')
+        .select('*');
+
+      if (!collectionsData) return;
+
+      for (const collection of collectionsData) {
+        const matchingCerts = userCertificates.filter(cert => {
+          const pattern = new RegExp(collection.topic_pattern, 'i');
+          return pattern.test(cert.topic);
+        });
+
+        if (matchingCerts.length >= collection.min_certificates) {
+          const avgScore = matchingCerts.reduce((sum, cert) => sum + cert.score, 0) / matchingCerts.length;
+          
+          if (avgScore >= collection.min_avg_score) {
+            // Check if already awarded
+            const { data: existing } = await supabase
+              .from('user_collection_certificates')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('collection_id', collection.id)
+              .maybeSingle();
+
+            if (!existing) {
+              // Award collection certificate
+              await supabase.from('user_collection_certificates').insert({
+                user_id: user.id,
+                collection_id: collection.id,
+                certificate_ids: matchingCerts.map(c => c.id),
+                avg_score: avgScore
+              });
+
+              toast.success(`🎉 Collection Completed: ${collection.name}!`);
+            }
+          }
+        }
+      }
+
+      // Refresh user collections
+      await fetchCollections();
+    } catch (error) {
+      console.error("Error checking collection completions:", error);
     }
   };
 
@@ -118,7 +221,7 @@ export default function Certificates() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -157,47 +260,97 @@ export default function Certificates() {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Collections Completed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-primary">
+                {userCollections.length}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Certificates Grid */}
-        {certificates.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Award className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-            <h3 className="text-xl font-semibold mb-2">No Certificates Yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Complete interviews with high performance to earn achievement certificates!
-            </p>
-            <Button onClick={() => navigate('/create-interview')}>
-              Start Your First Interview
-            </Button>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {certificates.map((certificate) => (
-              <Card
-                key={certificate.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => setSelectedCertificate(certificate)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-2">
-                    {getAchievementIcon(certificate.achievement_type)}
-                    <span className={`text-2xl font-bold ${getScoreColor(certificate.score)}`}>
-                      {certificate.score}/10
-                    </span>
-                  </div>
-                  <CardTitle className="text-lg">{certificate.achievement_type}</CardTitle>
-                  <CardDescription>{certificate.topic}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Issued {new Date(certificate.issued_date).toLocaleDateString()}
-                  </p>
-                </CardContent>
+        {/* Tabs for Certificates and Collections */}
+        <Tabs defaultValue="certificates" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+            <TabsTrigger value="certificates">My Certificates</TabsTrigger>
+            <TabsTrigger value="collections">Learning Paths</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="certificates">
+            {certificates.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Award className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-xl font-semibold mb-2">No Certificates Yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Complete interviews with high performance to earn achievement certificates!
+                </p>
+                <Button onClick={() => navigate('/create-interview')}>
+                  Start Your First Interview
+                </Button>
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {certificates.map((certificate) => (
+                  <Card
+                    key={certificate.id}
+                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setSelectedCertificate(certificate)}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between mb-2">
+                        {getAchievementIcon(certificate.achievement_type)}
+                        <span className={`text-2xl font-bold ${getScoreColor(certificate.score)}`}>
+                          {certificate.score}/10
+                        </span>
+                      </div>
+                      <CardTitle className="text-lg">{certificate.achievement_type}</CardTitle>
+                      <CardDescription>{certificate.topic}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        Issued {new Date(certificate.issued_date).toLocaleDateString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="collections">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {collections.map((collection) => {
+                const userCollection = userCollections.find(uc => uc.collection_id === collection.id);
+                const isCompleted = !!userCollection;
+                
+                const matchingCerts = certificates.filter(cert => {
+                  const pattern = new RegExp(collection.topic_pattern, 'i');
+                  return pattern.test(cert.topic);
+                });
+
+                const avgScore = matchingCerts.length > 0
+                  ? matchingCerts.reduce((sum, cert) => sum + cert.score, 0) / matchingCerts.length
+                  : 0;
+
+                return (
+                  <CollectionProgress
+                    key={collection.id}
+                    collection={collection}
+                    matchingCertificates={matchingCerts}
+                    isCompleted={isCompleted}
+                    avgScore={avgScore}
+                  />
+                );
+              })}
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Certificate Dialog */}
         <Dialog open={!!selectedCertificate} onOpenChange={() => setSelectedCertificate(null)}>

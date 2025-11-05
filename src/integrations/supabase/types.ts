@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      certificate_collections: {
+        Row: {
+          badge_icon: string
+          created_at: string
+          description: string
+          id: string
+          min_avg_score: number
+          min_certificates: number
+          name: string
+          topic_pattern: string
+        }
+        Insert: {
+          badge_icon?: string
+          created_at?: string
+          description: string
+          id?: string
+          min_avg_score?: number
+          min_certificates?: number
+          name: string
+          topic_pattern: string
+        }
+        Update: {
+          badge_icon?: string
+          created_at?: string
+          description?: string
+          id?: string
+          min_avg_score?: number
+          min_certificates?: number
+          name?: string
+          topic_pattern?: string
+        }
+        Relationships: []
+      }
       certificates: {
         Row: {
           achievement_type: string
@@ -279,6 +312,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_collection_certificates: {
+        Row: {
+          avg_score: number
+          certificate_ids: string[]
+          collection_id: string
+          created_at: string
+          earned_date: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          avg_score: number
+          certificate_ids: string[]
+          collection_id: string
+          created_at?: string
+          earned_date?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          avg_score?: number
+          certificate_ids?: string[]
+          collection_id?: string
+          created_at?: string
+          earned_date?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_collection_certificates_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_collections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
