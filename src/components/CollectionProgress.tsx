@@ -1,4 +1,4 @@
-import { Trophy, Star, Award, Brain, Lock } from "lucide-react";
+import { Trophy, Star, Award, Brain, Lock, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -13,92 +13,125 @@ interface CollectionProgressProps {
     min_certificates: number;
     min_avg_score: number;
   };
-  matchingCertificates: Array<{ id: string; score: number; topic: string }>;
-  isCompleted: boolean;
-  avgScore: number;
+  userCertificates: Array<{
+    topic: string;
+    score: number;
+  }>;
+  isEarned: boolean;
+  earnedDate?: string;
 }
-
-const iconMap: Record<string, any> = {
-  trophy: Trophy,
-  star: Star,
-  award: Award,
-  brain: Brain,
-};
 
 export default function CollectionProgress({ 
   collection, 
-  matchingCertificates, 
-  isCompleted,
-  avgScore 
+  userCertificates,
+  isEarned,
+  earnedDate 
 }: CollectionProgressProps) {
-  const Icon = iconMap[collection.badge_icon] || Trophy;
-  const progress = (matchingCertificates.length / collection.min_certificates) * 100;
-  const meetsScoreRequirement = avgScore >= collection.min_avg_score;
+  const getIcon = (iconName: string) => {
+    const iconMap: Record<string, any> = {
+      trophy: Trophy,
+      star: Star,
+      award: Award,
+      brain: Brain,
+    };
+    const Icon = iconMap[iconName] || Trophy;
+    return <Icon className="w-6 h-6" />;
+  };
+
+  // Match certificates based on topic pattern
+  const matchingCerts = userCertificates.filter(cert => {
+    const patterns = collection.topic_pattern.split('|');
+    return patterns.some(pattern => 
+      cert.topic.toLowerCase().includes(pattern.toLowerCase())
+    );
+  });
+
+  const avgScore = matchingCerts.length > 0
+    ? matchingCerts.reduce((sum, cert) => sum + cert.score, 0) / matchingCerts.length
+    : 0;
+
+  const certProgress = (matchingCerts.length / collection.min_certificates) * 100;
+  const scoreProgress = (avgScore / collection.min_avg_score) * 100;
+  
+  const meetsRequirements = 
+    matchingCerts.length >= collection.min_certificates && 
+    avgScore >= collection.min_avg_score;
 
   return (
-    <Card className={isCompleted ? "border-primary/50 bg-primary/5" : ""}>
+    <Card className={`relative overflow-hidden ${isEarned ? 'border-primary' : ''}`}>
+      {isEarned && (
+        <div className="absolute top-2 right-2">
+          <CheckCircle2 className="w-6 h-6 text-primary" />
+        </div>
+      )}
+      
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-              <Icon className="w-6 h-6" />
-            </div>
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                {collection.name}
-                {isCompleted && <Badge variant="default">Completed</Badge>}
-              </CardTitle>
-              <CardDescription>{collection.description}</CardDescription>
-            </div>
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`p-2 rounded-lg ${isEarned ? 'bg-primary/20 text-primary' : 'bg-muted'}`}>
+            {getIcon(collection.badge_icon)}
           </div>
-          {!isCompleted && matchingCertificates.length === 0 && (
-            <Lock className="w-5 h-5 text-muted-foreground" />
-          )}
+          <div className="flex-1">
+            <CardTitle className="text-lg">{collection.name}</CardTitle>
+            {isEarned && earnedDate && (
+              <Badge variant="secondary" className="mt-1">
+                Earned {new Date(earnedDate).toLocaleDateString()}
+              </Badge>
+            )}
+          </div>
         </div>
+        <CardDescription>{collection.description}</CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium">
-              {matchingCertificates.length} / {collection.min_certificates} certificates
-            </span>
-          </div>
-          <Progress value={Math.min(progress, 100)} className="h-2" />
-        </div>
+        {!isEarned && (
+          <>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Certificates</span>
+                <span className="font-medium">
+                  {matchingCerts.length}/{collection.min_certificates}
+                </span>
+              </div>
+              <Progress value={Math.min(certProgress, 100)} className="h-2" />
+            </div>
 
-        {matchingCertificates.length > 0 && (
-          <div>
-            <div className="flex justify-between text-sm mb-2">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Average Score</span>
+                <span className="font-medium">
+                  {avgScore.toFixed(1)}/{collection.min_avg_score}
+                </span>
+              </div>
+              <Progress value={Math.min(scoreProgress, 100)} className="h-2" />
+            </div>
+
+            {meetsRequirements && (
+              <div className="pt-2 flex items-center gap-2 text-sm text-primary">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="font-medium">Requirements met! Certificate will be issued.</span>
+              </div>
+            )}
+
+            {matchingCerts.length === 0 && (
+              <div className="pt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <Lock className="w-4 h-4" />
+                <span>Complete interviews on {collection.topic_pattern.split('|').join(', ')} topics</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {isEarned && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Certificates Earned</span>
+              <span className="font-medium">{matchingCerts.length}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Average Score</span>
-              <span className={`font-medium ${meetsScoreRequirement ? 'text-green-600' : 'text-amber-600'}`}>
-                {avgScore.toFixed(1)} / {collection.min_avg_score}
-              </span>
-            </div>
-            <Progress 
-              value={(avgScore / 10) * 100} 
-              className="h-2"
-            />
-          </div>
-        )}
-
-        {matchingCertificates.length > 0 && (
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Qualifying Certificates:</p>
-            <div className="flex flex-wrap gap-2">
-              {matchingCertificates.map((cert) => (
-                <Badge key={cert.id} variant="secondary" className="text-xs">
-                  {cert.topic} ({cert.score}/10)
-                </Badge>
-              ))}
+              <span className="font-medium text-primary">{avgScore.toFixed(1)}/10</span>
             </div>
           </div>
-        )}
-
-        {isCompleted && (
-          <Badge className="w-full justify-center" variant="default">
-            🎉 Collection Completed!
-          </Badge>
         )}
       </CardContent>
     </Card>

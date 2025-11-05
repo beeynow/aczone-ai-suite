@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Award, ArrowLeft, Trophy, Star } from "lucide-react";
+import { Award, ArrowLeft, Trophy, Star, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -278,8 +278,14 @@ export default function Certificates() {
         {/* Tabs for Certificates and Collections */}
         <Tabs defaultValue="certificates" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
-            <TabsTrigger value="certificates">My Certificates</TabsTrigger>
-            <TabsTrigger value="collections">Learning Paths</TabsTrigger>
+            <TabsTrigger value="certificates">
+              <Award className="w-4 h-4 mr-2" />
+              My Certificates
+            </TabsTrigger>
+            <TabsTrigger value="collections">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Learning Paths
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="certificates">
@@ -324,27 +330,16 @@ export default function Certificates() {
           </TabsContent>
 
           <TabsContent value="collections">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {collections.map((collection) => {
                 const userCollection = userCollections.find(uc => uc.collection_id === collection.id);
-                const isCompleted = !!userCollection;
-                
-                const matchingCerts = certificates.filter(cert => {
-                  const pattern = new RegExp(collection.topic_pattern, 'i');
-                  return pattern.test(cert.topic);
-                });
-
-                const avgScore = matchingCerts.length > 0
-                  ? matchingCerts.reduce((sum, cert) => sum + cert.score, 0) / matchingCerts.length
-                  : 0;
-
                 return (
                   <CollectionProgress
                     key={collection.id}
                     collection={collection}
-                    matchingCertificates={matchingCerts}
-                    isCompleted={isCompleted}
-                    avgScore={avgScore}
+                    userCertificates={certificates}
+                    isEarned={!!userCollection}
+                    earnedDate={userCollection?.earned_date}
                   />
                 );
               })}
