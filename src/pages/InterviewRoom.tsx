@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Star, ArrowLeft, PhoneCall } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Star, ArrowLeft, PhoneCall, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import VoiceInterview from "@/components/VoiceInterview";
 import InterviewSummary from "@/components/InterviewSummary";
+import ParticipantsList from "@/components/ParticipantsList";
+import ShareInterviewModal from "@/components/ShareInterviewModal";
 
 interface Message {
   id: string;
@@ -34,6 +36,8 @@ export default function InterviewRoom() {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -42,12 +46,20 @@ export default function InterviewRoom() {
 
   useEffect(() => {
     if (id) {
+      loadCurrentUser();
       fetchInterview();
       fetchMessages();
       subscribeToMessages();
       updateInterviewStatus('in_progress');
     }
   }, [id]);
+
+  const loadCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setCurrentUserId(user.id);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -435,18 +447,20 @@ export default function InterviewRoom() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="default"
-            onClick={() => setIsVoiceMode(true)}
-          >
+          <Button variant="default" onClick={() => setIsVoiceMode(true)}>
             <PhoneCall className="w-4 h-4 mr-2" />
             Voice Call Mode
           </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsVideoOn(!isVideoOn)}
-          >
+          {interview.type === 'group' && interview.joining_code && (
+            <Button
+              variant="outline"
+              onClick={() => setShareModalOpen(true)}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+          )}
+          <Button variant="outline" size="icon" onClick={() => setIsVideoOn(!isVideoOn)}>
             {isVideoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
           </Button>
           <Button
@@ -468,9 +482,16 @@ export default function InterviewRoom() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex gap-4 p-6">
+        {/* Participants Sidebar (Group Interviews Only) */}
+        {interview.type === 'group' && currentUserId && (
+          <div className="w-64 flex-shrink-0">
+            <ParticipantsList interviewId={id!} currentUserId={currentUserId} />
+          </div>
+        )}
+        
         {/* Video/Chat Area */}
-        <div className="flex-1 p-6">
+        <div className="flex-1">
           <Card className="h-full flex flex-col">
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -562,6 +583,15 @@ export default function InterviewRoom() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {interview && (
+        <ShareInterviewModal
+          open={shareModalOpen}
+          onOpenChange={setShareModalOpen}
+          joiningCode={interview.joining_code || ''}
+          interviewTitle={interview.title}
+        />
+      )}
     </div>
   );
 }

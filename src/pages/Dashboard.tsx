@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Calendar, Users, User, Clock, Award } from "lucide-react";
+import { Plus, Calendar, Users, User, Clock, Award, Share2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import ShareInterviewModal from "@/components/ShareInterviewModal";
 
 interface Interview {
   id: string;
@@ -18,6 +19,7 @@ interface Interview {
   duration_minutes: number;
   status: string;
   created_at: string;
+  joining_code: string | null;
 }
 
 export default function Dashboard() {
@@ -25,6 +27,8 @@ export default function Dashboard() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [certificateCount, setCertificateCount] = useState(0);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
 
   useEffect(() => {
     fetchInterviews();
@@ -73,6 +77,22 @@ export default function Dashboard() {
       case 'cancelled': return 'bg-red-500/10 text-red-500';
       default: return 'bg-gray-500/10 text-gray-500';
     }
+  };
+
+  const copyJoiningCode = async (code: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success("Joining code copied!");
+    } catch (error) {
+      toast.error("Failed to copy code");
+    }
+  };
+
+  const openShareModal = (interview: Interview, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedInterview(interview);
+    setShareModalOpen(true);
   };
 
   return (
@@ -200,6 +220,36 @@ export default function Dashboard() {
                     <Badge variant="outline">{interview.topic}</Badge>
                     <Badge variant="outline">{interview.experience_level}</Badge>
                   </div>
+                  
+                  {interview.type === 'group' && interview.joining_code && (
+                    <div className="mt-3 p-2 bg-muted rounded-lg">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Joining Code</p>
+                          <p className="font-mono font-bold text-sm">{interview.joining_code}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={(e) => copyJoiningCode(interview.joining_code!, e)}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={(e) => openShareModal(interview, e)}
+                          >
+                            <Share2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {interview.status === 'scheduled' && (
                     <Button 
                       className="w-full mt-2"
@@ -214,6 +264,15 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      
+      {selectedInterview && (
+        <ShareInterviewModal
+          open={shareModalOpen}
+          onOpenChange={setShareModalOpen}
+          joiningCode={selectedInterview.joining_code || ''}
+          interviewTitle={selectedInterview.title}
+        />
+      )}
     </div>
   );
 }

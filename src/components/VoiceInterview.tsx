@@ -162,42 +162,58 @@ export default function VoiceInterview({
   const speakAIResponse = async (text: string): Promise<void> => {
     return new Promise((resolve) => {
       if (!window.speechSynthesis) {
-        toast.error('Text-to-speech not supported in this browser');
+        console.warn('Text-to-speech not supported in this browser');
         resolve();
         return;
       }
 
-      // Cancel any ongoing speech
-      window.speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      
-      utterance.onstart = () => {
-        setIsAISpeaking(true);
-        console.log('AI started speaking');
-      };
-      
-      utterance.onend = () => {
-        setIsAISpeaking(false);
-        console.log('AI finished speaking');
-        resolve();
-      };
+      try {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        // Wait a bit for cancellation to complete
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'en-US';
+          utterance.rate = 0.95;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+          
+          utterance.onstart = () => {
+            setIsAISpeaking(true);
+            console.log('AI started speaking:', text.substring(0, 50));
+          };
+          
+          utterance.onend = () => {
+            setIsAISpeaking(false);
+            console.log('AI finished speaking');
+            resolve();
+          };
 
-      utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event);
+          utterance.onerror = (event) => {
+            console.error('Speech synthesis error:', event);
+            setIsAISpeaking(false);
+            resolve();
+          };
+
+          synthRef.current = utterance;
+          
+          // Ensure we have voices loaded
+          const voices = window.speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            // Try to find a good English voice
+            const englishVoice = voices.find(v => v.lang.startsWith('en-')) || voices[0];
+            utterance.voice = englishVoice;
+          }
+          
+          // Start speaking
+          window.speechSynthesis.speak(utterance);
+        }, 100);
+      } catch (error) {
+        console.error('Error in speakAIResponse:', error);
         setIsAISpeaking(false);
         resolve();
-      };
-
-      synthRef.current = utterance;
-      
-      // Small delay to ensure state updates before speaking
-      setTimeout(() => {
-        window.speechSynthesis.speak(utterance);
-      }, 100);
+      }
     });
   };
 

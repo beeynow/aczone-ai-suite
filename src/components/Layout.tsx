@@ -17,6 +17,7 @@ import {
   Home,
   Check,
   Award,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Join Interview", href: "/join-interview", icon: UserPlus },
   { name: "Create Interview", href: "/create-interview", icon: FileText, badge: "NEW" },
   { name: "Certificates", href: "/certificates", icon: Award },
 ];
