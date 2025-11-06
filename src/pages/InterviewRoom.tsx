@@ -145,6 +145,13 @@ export default function InterviewRoom() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        toast.error('Authentication required');
+        return;
+      }
       
       // Save user message
       const { error: insertError } = await supabase
@@ -168,7 +175,7 @@ export default function InterviewRoom() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           messages: messagesForAI.map(m => ({ role: m.role, content: m.content })),
