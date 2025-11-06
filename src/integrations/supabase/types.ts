@@ -161,6 +161,44 @@ export type Database = {
           },
         ]
       }
+      interview_participants_realtime: {
+        Row: {
+          created_at: string | null
+          id: string
+          interview_id: string
+          is_active: boolean | null
+          last_seen: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          interview_id: string
+          is_active?: boolean | null
+          last_seen?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          interview_id?: string
+          is_active?: boolean | null
+          last_seen?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_participants_realtime_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_ratings: {
         Row: {
           ai_performance_score: number | null
@@ -224,6 +262,7 @@ export type Database = {
           experience_level: string
           id: string
           issue: string | null
+          joining_code: string | null
           learning_goals: string | null
           payment_reference: string | null
           payment_status: string | null
@@ -246,6 +285,7 @@ export type Database = {
           experience_level: string
           id?: string
           issue?: string | null
+          joining_code?: string | null
           learning_goals?: string | null
           payment_reference?: string | null
           payment_status?: string | null
@@ -268,6 +308,7 @@ export type Database = {
           experience_level?: string
           id?: string
           issue?: string | null
+          joining_code?: string | null
           learning_goals?: string | null
           payment_reference?: string | null
           payment_status?: string | null
@@ -377,6 +418,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_joining_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
