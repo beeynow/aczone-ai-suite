@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ParticipantsList from "@/components/ParticipantsList";
 
 interface VoiceInterviewProps {
   interviewId: string;
@@ -15,6 +16,8 @@ interface VoiceInterviewProps {
   currentKnowledge?: string;
   challenges?: string;
   preferredStyle?: string;
+  isGroupInterview?: boolean;
+  currentUserId?: string;
 }
 
 // Extend Window for webkit prefix
@@ -34,7 +37,9 @@ export default function VoiceInterview({
   learningGoals,
   currentKnowledge,
   challenges,
-  preferredStyle
+  preferredStyle,
+  isGroupInterview = false,
+  currentUserId
 }: VoiceInterviewProps) {
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -433,10 +438,18 @@ export default function VoiceInterview({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-b from-background to-muted">
-      <div className="w-full max-w-4xl space-y-8">
-        {/* AI Container */}
-        <Card className="p-8 bg-primary/5 border-2 border-primary/20">
+    <div className="flex min-h-screen bg-gradient-to-b from-background to-muted">
+      {/* Participants Sidebar for Group Interviews */}
+      {isGroupInterview && currentUserId && (
+        <div className="w-80 flex-shrink-0 p-6 border-r">
+          <ParticipantsList interviewId={interviewId} currentUserId={currentUserId} />
+        </div>
+      )}
+      
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-4xl space-y-8">
+          {/* AI Container */}
+          <Card className="p-8 bg-primary/5 border-2 border-primary/20">
           <div className="flex items-center gap-4">
             <div className={`relative ${isAISpeaking ? 'animate-pulse' : ''}`}>
               <Bot className="w-16 h-16 text-primary" />
@@ -511,6 +524,7 @@ export default function VoiceInterview({
             <Phone className="w-5 h-5 mr-2" />
             End Interview
           </Button>
+        </div>
         </div>
       </div>
     </div>

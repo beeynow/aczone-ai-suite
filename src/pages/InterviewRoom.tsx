@@ -418,6 +418,8 @@ export default function InterviewRoom() {
         currentKnowledge={interview.current_knowledge}
         challenges={interview.specific_challenges}
         preferredStyle={interview.preferred_style}
+        isGroupInterview={interview.type === 'group'}
+        currentUserId={currentUserId}
         onEnd={() => {
           setIsVoiceMode(false);
           endInterview();

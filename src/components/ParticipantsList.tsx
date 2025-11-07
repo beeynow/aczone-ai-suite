@@ -13,6 +13,7 @@ interface Participant {
   is_active: boolean;
   last_seen: string;
   joined_at?: string;
+  is_creator?: boolean;
 }
 
 interface ParticipantsListProps {
@@ -57,6 +58,13 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
 
   const loadParticipants = async () => {
     try {
+      // Get interview details to know the creator
+      const { data: interviewData } = await supabase
+        .from('interviews')
+        .select('creator_id')
+        .eq('id', interviewId)
+        .single();
+
       // Get all participants who have joined the interview
       const { data: joinedParticipants, error: joinError } = await supabase
         .from('interview_participants')
@@ -65,7 +73,6 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
 
       if (joinError) {
         console.error('Error loading joined participants:', joinError);
-        return;
       }
 
       // Get real-time presence status
@@ -78,8 +85,21 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
         console.error('Error loading presence:', presenceError);
       }
 
+      // Collect all unique user IDs from both sources
+      const allUserIds = new Set<string>();
+      joinedParticipants?.forEach(p => allUserIds.add(p.user_id));
+      presenceData?.forEach(p => allUserIds.add(p.user_id));
+      
+      // Always include the current user
+      allUserIds.add(currentUserId);
+      
+      // Always include the creator
+      if (interviewData?.creator_id) {
+        allUserIds.add(interviewData.creator_id);
+      }
+
       // Get profile names for all participants
-      const userIds = joinedParticipants?.map(p => p.user_id) || [];
+      const userIds = Array.from(allUserIds);
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name')
@@ -88,18 +108,20 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
       // Combine the data
       const participantsMap = new Map();
       
-      // Add all joined participants
-      joinedParticipants?.forEach(jp => {
-        const profile = profiles?.find(p => p.user_id === jp.user_id);
-        const presence = presenceData?.find(p => p.user_id === jp.user_id);
+      // Process all user IDs
+      userIds.forEach(userId => {
+        const joined = joinedParticipants?.find(p => p.user_id === userId);
+        const presence = presenceData?.find(p => p.user_id === userId);
+        const profile = profiles?.find(p => p.user_id === userId);
         
-        participantsMap.set(jp.user_id, {
-          id: jp.user_id,
-          user_id: jp.user_id,
+        participantsMap.set(userId, {
+          id: userId,
+          user_id: userId,
           user_name: profile?.full_name || 'User',
           is_active: presence?.is_active || false,
-          last_seen: presence?.last_seen || jp.joined_at,
-          joined_at: jp.joined_at
+          last_seen: presence?.last_seen || joined?.joined_at || new Date().toISOString(),
+          joined_at: joined?.joined_at || null,
+          is_creator: userId === interviewData?.creator_id
         });
       });
 
@@ -249,8 +271,13 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
                 {participant.user_id === currentUserId && (
                   <span className="text-xs text-muted-foreground ml-1">(You)</span>
                 )}
+                {participant.is_creator && (
+                  <Badge variant="secondary" className="ml-2 text-xs">Host</Badge>
+                )}
               </p>
-              <p className="text-xs text-muted-foreground">Participant</p>
+              <p className="text-xs text-muted-foreground">
+                {participant.is_creator ? 'Interview Host' : 'Participant'}
+              </p>
             </div>
             {participant.is_active && (
               <div className="w-2 h-2 rounded-full bg-green-500" />
