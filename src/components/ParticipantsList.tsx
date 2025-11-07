@@ -12,6 +12,7 @@ interface Participant {
   user_name: string;
   is_active: boolean;
   last_seen: string;
+  joined_at?: string;
 }
 
 interface ParticipantsListProps {
@@ -55,24 +56,80 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
   };
 
   const loadParticipants = async () => {
-    const { data, error } = await supabase
-      .from('interview_participants_realtime')
-      .select('*')
-      .eq('interview_id', interviewId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: true });
+    try {
+      // Get all participants who have joined the interview
+      const { data: joinedParticipants, error: joinError } = await supabase
+        .from('interview_participants')
+        .select('user_id, joined_at')
+        .eq('interview_id', interviewId);
 
-    if (error) {
+      if (joinError) {
+        console.error('Error loading joined participants:', joinError);
+        return;
+      }
+
+      // Get real-time presence status
+      const { data: presenceData, error: presenceError } = await supabase
+        .from('interview_participants_realtime')
+        .select('*')
+        .eq('interview_id', interviewId);
+
+      if (presenceError) {
+        console.error('Error loading presence:', presenceError);
+      }
+
+      // Get profile names for all participants
+      const userIds = joinedParticipants?.map(p => p.user_id) || [];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+
+      // Combine the data
+      const participantsMap = new Map();
+      
+      // Add all joined participants
+      joinedParticipants?.forEach(jp => {
+        const profile = profiles?.find(p => p.user_id === jp.user_id);
+        const presence = presenceData?.find(p => p.user_id === jp.user_id);
+        
+        participantsMap.set(jp.user_id, {
+          id: jp.user_id,
+          user_id: jp.user_id,
+          user_name: profile?.full_name || 'User',
+          is_active: presence?.is_active || false,
+          last_seen: presence?.last_seen || jp.joined_at,
+          joined_at: jp.joined_at
+        });
+      });
+
+      setParticipants(Array.from(participantsMap.values()));
+    } catch (error) {
       console.error('Error loading participants:', error);
-      return;
     }
-
-    setParticipants(data || []);
   };
 
   const subscribeToParticipants = () => {
-    const channel = supabase
+    // Subscribe to both tables for real-time updates
+    const channel1 = supabase
       .channel(`interview-${interviewId}-participants`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'interview_participants',
+          filter: `interview_id=eq.${interviewId}`
+        },
+        (payload) => {
+          console.log('Participant joined:', payload);
+          loadParticipants();
+        }
+      )
+      .subscribe();
+
+    const channel2 = supabase
+      .channel(`interview-${interviewId}-presence`)
       .on(
         'postgres_changes',
         {
@@ -82,14 +139,15 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
           filter: `interview_id=eq.${interviewId}`
         },
         (payload) => {
-          console.log('Participant change:', payload);
+          console.log('Presence change:', payload);
           loadParticipants();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   };
 
@@ -155,7 +213,7 @@ export default function ParticipantsList({ interviewId, currentUserId }: Partici
         <Users className="w-5 h-5 text-primary" />
         <h3 className="font-semibold">Participants</h3>
         <Badge variant="secondary" className="ml-auto">
-          {participants.length + 1}
+          {participants.length + 1} {/* +1 for AI */}
         </Badge>
       </div>
 
