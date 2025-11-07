@@ -37,13 +37,48 @@ export default function Dashboard() {
 
   const fetchInterviews = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Get interviews where user is creator
+      const { data: createdInterviews, error: createdError } = await supabase
         .from('interviews')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('creator_id', user.id);
 
-      if (error) throw error;
-      setInterviews(data || []);
+      if (createdError) throw createdError;
+
+      // Get interviews where user is a participant
+      const { data: participantInterviews, error: participantError } = await supabase
+        .from('interview_participants')
+        .select('interview_id')
+        .eq('user_id', user.id);
+
+      if (participantError) throw participantError;
+
+      const participantInterviewIds = participantInterviews?.map(p => p.interview_id) || [];
+      
+      let joinedInterviews: any[] = [];
+      if (participantInterviewIds.length > 0) {
+        const { data, error } = await supabase
+          .from('interviews')
+          .select('*')
+          .in('id', participantInterviewIds);
+        
+        if (error) throw error;
+        joinedInterviews = data || [];
+      }
+
+      // Combine and deduplicate
+      const allInterviews = [...(createdInterviews || []), ...joinedInterviews];
+      const uniqueInterviews = Array.from(
+        new Map(allInterviews.map(i => [i.id, i])).values()
+      ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setInterviews(uniqueInterviews);
     } catch (error) {
       console.error('Error fetching interviews:', error);
       toast.error('Failed to load interviews');

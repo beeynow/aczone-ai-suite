@@ -471,13 +471,22 @@ export default function InterviewRoom() {
           >
             {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </Button>
-          <Button
-            variant="destructive"
-            onClick={endInterview}
-          >
-            <Phone className="w-4 h-4 mr-2" />
-            End Interview
-          </Button>
+          {interview.creator_id === currentUserId ? (
+            <Button
+              variant="destructive"
+              onClick={endInterview}
+            >
+              <Phone className="w-4 h-4 mr-2" />
+              End Interview
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => navigate('/')}
+            >
+              Leave Interview
+            </Button>
+          )}
         </div>
       </div>
 
