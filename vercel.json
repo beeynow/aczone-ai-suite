@@ -1,0 +1,11 @@
+{
+  "routes": [
+    {
+      "src": "/[^.]+",
+      "headers": {
+        "Cache-Control": "must-revalidate, max-age=3600"
+      },
+      "dest": "/"
+    }
+  ]
+}
