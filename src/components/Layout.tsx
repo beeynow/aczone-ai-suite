@@ -18,6 +18,9 @@ import {
   Check,
   Award,
   UserPlus,
+  Brain,
+  BarChart3,
+  FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,8 +39,11 @@ import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Question Bank", href: "/question-bank", icon: Brain, badge: "NEW" },
   { name: "Join Interview", href: "/join-interview", icon: UserPlus },
-  { name: "Create Interview", href: "/create-interview", icon: FileText, badge: "NEW" },
+  { name: "Create Interview", href: "/create-interview", icon: FileText },
+  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  { name: "Resume Analyzer", href: "/resume-analyzer", icon: FileCheck },
   { name: "Certificates", href: "/certificates", icon: Award },
 ];
 

@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      candidate_reports: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          detailed_analysis: Json | null
+          id: string
+          interview_id: string
+          organization_id: string | null
+          overall_rating: number | null
+          recommended_action: string | null
+          recruiter_id: string | null
+          strengths: string[] | null
+          weaknesses: string[] | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          detailed_analysis?: Json | null
+          id?: string
+          interview_id: string
+          organization_id?: string | null
+          overall_rating?: number | null
+          recommended_action?: string | null
+          recruiter_id?: string | null
+          strengths?: string[] | null
+          weaknesses?: string[] | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          detailed_analysis?: Json | null
+          id?: string
+          interview_id?: string
+          organization_id?: string | null
+          overall_rating?: number | null
+          recommended_action?: string | null
+          recruiter_id?: string | null
+          strengths?: string[] | null
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_reports_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_reports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificate_collections: {
         Row: {
           badge_icon: string
@@ -87,6 +144,122 @@ export type Database = {
             columns: ["interview_id"]
             isOneToOne: false
             referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_analytics: {
+        Row: {
+          average_score: number | null
+          category: Database["public"]["Enums"]["question_category"] | null
+          completed_at: string | null
+          difficulty: Database["public"]["Enums"]["difficulty_level"] | null
+          id: string
+          interview_id: string
+          session_data: Json | null
+          time_spent_seconds: number | null
+          total_answers: number | null
+          total_questions: number | null
+          user_id: string
+        }
+        Insert: {
+          average_score?: number | null
+          category?: Database["public"]["Enums"]["question_category"] | null
+          completed_at?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
+          id?: string
+          interview_id: string
+          session_data?: Json | null
+          time_spent_seconds?: number | null
+          total_answers?: number | null
+          total_questions?: number | null
+          user_id: string
+        }
+        Update: {
+          average_score?: number | null
+          category?: Database["public"]["Enums"]["question_category"] | null
+          completed_at?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty_level"] | null
+          id?: string
+          interview_id?: string
+          session_data?: Json | null
+          time_spent_seconds?: number | null
+          total_answers?: number | null
+          total_questions?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_analytics_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_answers: {
+        Row: {
+          ai_feedback: string | null
+          answer_text: string
+          clarity_score: number | null
+          confidence_score: number | null
+          created_at: string | null
+          grammar_score: number | null
+          id: string
+          interview_id: string
+          overall_score: number | null
+          question_id: string | null
+          question_text: string
+          tone_score: number | null
+          transcription: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_feedback?: string | null
+          answer_text: string
+          clarity_score?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          grammar_score?: number | null
+          id?: string
+          interview_id: string
+          overall_score?: number | null
+          question_id?: string | null
+          question_text: string
+          tone_score?: number | null
+          transcription?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_feedback?: string | null
+          answer_text?: string
+          clarity_score?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          grammar_score?: number | null
+          id?: string
+          interview_id?: string
+          overall_score?: number | null
+          question_id?: string | null
+          question_text?: string
+          tone_score?: number | null
+          transcription?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_answers_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
             referencedColumns: ["id"]
           },
         ]
@@ -354,6 +527,107 @@ export type Database = {
         }
         Relationships: []
       }
+      question_bank: {
+        Row: {
+          category: Database["public"]["Enums"]["question_category"]
+          created_at: string | null
+          created_by: string | null
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          expected_keywords: string[] | null
+          id: string
+          is_active: boolean | null
+          language: Database["public"]["Enums"]["language_code"] | null
+          question_text: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["question_category"]
+          created_at?: string | null
+          created_by?: string | null
+          difficulty: Database["public"]["Enums"]["difficulty_level"]
+          expected_keywords?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          language?: Database["public"]["Enums"]["language_code"] | null
+          question_text: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["question_category"]
+          created_at?: string | null
+          created_by?: string | null
+          difficulty?: Database["public"]["Enums"]["difficulty_level"]
+          expected_keywords?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          language?: Database["public"]["Enums"]["language_code"] | null
+          question_text?: string
+        }
+        Relationships: []
+      }
+      recruiter_members: {
+        Row: {
+          id: string
+          joined_at: string | null
+          organization_id: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          organization_id: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          organization_id?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruiter_organizations: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       user_collection_certificates: {
         Row: {
           avg_score: number
@@ -391,6 +665,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          preferred_language:
+            | Database["public"]["Enums"]["language_code"]
+            | null
+          stt_enabled: boolean | null
+          theme: string | null
+          tts_enabled: boolean | null
+          ui_language: Database["public"]["Enums"]["language_code"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          preferred_language?:
+            | Database["public"]["Enums"]["language_code"]
+            | null
+          stt_enabled?: boolean | null
+          theme?: string | null
+          tts_enabled?: boolean | null
+          ui_language?: Database["public"]["Enums"]["language_code"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          preferred_language?:
+            | Database["public"]["Enums"]["language_code"]
+            | null
+          stt_enabled?: boolean | null
+          theme?: string | null
+          tts_enabled?: boolean | null
+          ui_language?: Database["public"]["Enums"]["language_code"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_resumes: {
+        Row: {
+          ai_analysis: Json | null
+          clarity_rating: number | null
+          created_at: string | null
+          id: string
+          improved_text: string | null
+          original_text: string
+          relevance_rating: number | null
+          structure_rating: number | null
+          suggested_roles: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          clarity_rating?: number | null
+          created_at?: string | null
+          id?: string
+          improved_text?: string | null
+          original_text: string
+          relevance_rating?: number | null
+          structure_rating?: number | null
+          suggested_roles?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          clarity_rating?: number | null
+          created_at?: string | null
+          id?: string
+          improved_text?: string | null
+          original_text?: string
+          relevance_rating?: number | null
+          structure_rating?: number | null
+          suggested_roles?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -437,6 +795,19 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      difficulty_level: "beginner" | "intermediate" | "expert"
+      language_code: "en" | "fr" | "ar" | "hi" | "es" | "pt" | "de" | "zh"
+      question_category:
+        | "medical"
+        | "law"
+        | "finance"
+        | "tech"
+        | "business"
+        | "education"
+        | "engineering"
+        | "sales"
+        | "marketing"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -565,6 +936,20 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      difficulty_level: ["beginner", "intermediate", "expert"],
+      language_code: ["en", "fr", "ar", "hi", "es", "pt", "de", "zh"],
+      question_category: [
+        "medical",
+        "law",
+        "finance",
+        "tech",
+        "business",
+        "education",
+        "engineering",
+        "sales",
+        "marketing",
+        "other",
+      ],
     },
   },
 } as const
