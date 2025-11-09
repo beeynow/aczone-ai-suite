@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, RefreshCw, Play } from "lucide-react";
+import { Sparkles, RefreshCw, Play, Target, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 type Category = 'tech' | 'medical' | 'law' | 'finance' | 'business' | 'education' | 'engineering' | 'sales' | 'marketing' | 'other';
@@ -90,14 +90,26 @@ export default function QuestionBank() {
   const difficultyInfo = DIFFICULTY_LEVELS.find(d => d.value === selectedDifficulty);
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+    <div className="container mx-auto py-8 px-4 max-w-7xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
             AI Question Engine
           </h1>
-          <p className="text-muted-foreground">
-            Select your category and difficulty to get personalized interview questions
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Powered by advanced AI to generate personalized interview questions tailored to your career path
           </p>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Badge variant="secondary" className="text-sm">
+              <Sparkles className="w-3 h-3 mr-1" />
+              10,000+ Questions
+            </Badge>
+            <Badge variant="secondary" className="text-sm">
+              AI-Generated Feedback
+            </Badge>
+            <Badge variant="secondary" className="text-sm">
+              Real-time Analysis
+            </Badge>
+          </div>
         </div>
 
         {/* Selection Controls */}
@@ -146,13 +158,13 @@ export default function QuestionBank() {
 
         {/* Current Question Display */}
         {selectedQuestion && (
-          <Card className="p-8 mb-6 bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20">
-            <div className="flex items-start justify-between mb-4">
+          <Card className="p-10 mb-8 bg-gradient-to-br from-primary/10 via-primary/5 to-background border-2 border-primary/30 shadow-xl">
+            <div className="flex items-start justify-between mb-6">
               <div className="flex gap-2">
-                <Badge className={categoryInfo?.color}>
+                <Badge className={`${categoryInfo?.color} text-white px-3 py-1`}>
                   {categoryInfo?.label}
                 </Badge>
-                <Badge className={difficultyInfo?.color}>
+                <Badge className={`${difficultyInfo?.color} text-white px-3 py-1`}>
                   {difficultyInfo?.label}
                 </Badge>
               </div>
@@ -161,31 +173,35 @@ export default function QuestionBank() {
                 size="sm"
                 onClick={regenerateQuestion}
                 disabled={loading || questions.length <= 1}
+                className="hover:bg-primary hover:text-primary-foreground"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Regenerate
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                New Question
               </Button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Interview Question</h3>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Sparkles className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold">Interview Question</h3>
                 </div>
-                <p className="text-xl font-medium leading-relaxed">
+                <p className="text-2xl font-medium leading-relaxed p-6 bg-background/50 rounded-lg border border-primary/20">
                   {selectedQuestion.question_text}
                 </p>
               </div>
 
               {selectedQuestion.expected_keywords && selectedQuestion.expected_keywords.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                    Keywords to cover:
+                <div className="p-6 bg-muted/30 rounded-lg">
+                  <h4 className="text-base font-semibold mb-3 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-primary" />
+                    Key Topics to Cover:
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedQuestion.expected_keywords.map((keyword: string, idx: number) => (
-                      <Badge key={idx} variant="secondary">
+                      <Badge key={idx} variant="secondary" className="text-sm py-1 px-3">
                         {keyword}
                       </Badge>
                     ))}
@@ -197,15 +213,23 @@ export default function QuestionBank() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 mb-8">
           <Button
             size="lg"
             onClick={startInterview}
             disabled={!selectedQuestion}
-            className="flex-1"
+            className="flex-1 h-14 text-lg bg-gradient-to-r from-primary to-primary/80"
           >
-            <Play className="w-5 h-5 mr-2" />
+            <Play className="w-6 h-6 mr-2" />
             Start Interview with This Question
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => navigate('/analytics')}
+            className="h-14"
+          >
+            <TrendingUp className="w-5 h-5" />
           </Button>
         </div>
 

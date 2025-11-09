@@ -1,21 +1,78 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { FileText, Sparkles, Download, Loader2 } from "lucide-react";
+import { FileText, Sparkles, Download, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ResumeAnalyzer() {
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        resolve(text);
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFile = async (file: File) => {
+    if (!file.type.includes('text') && !file.name.endsWith('.txt') && !file.name.endsWith('.pdf')) {
+      toast.error('Please upload a text or PDF file');
+      return;
+    }
+
+    setResumeFile(file);
+    try {
+      const text = await extractTextFromFile(file);
+      setResumeText(text);
+      toast.success('Resume uploaded successfully!');
+    } catch (error) {
+      console.error('Error reading file:', error);
+      toast.error('Failed to read file');
+    }
+  };
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
 
   const analyzeResume = async () => {
     if (!resumeText.trim()) {
-      toast.error('Please enter your resume text');
+      toast.error('Please upload your resume first');
       return;
     }
 
@@ -84,22 +141,78 @@ export default function ResumeAnalyzer() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Input Section */}
+          {/* Upload Section */}
           <div className="space-y-6">
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <FileText className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-semibold">Your Resume</h2>
+                <Upload className="w-5 h-5 text-primary" />
+                <h2 className="text-xl font-semibold">Upload Your Resume</h2>
               </div>
-              <Textarea
-                placeholder="Paste your resume text here..."
-                value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
-                className="min-h-[400px] font-mono text-sm"
-              />
-              <div className="mt-4 text-sm text-muted-foreground">
-                {resumeText.split(/\s+/).filter(w => w).length} words
-              </div>
+              
+              {!resumeFile ? (
+                <div
+                  className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+                    dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <Upload className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium mb-2">Drop your resume here</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    or click to browse (TXT, PDF supported)
+                  </p>
+                  <input
+                    type="file"
+                    id="resume-upload"
+                    className="hidden"
+                    accept=".txt,.pdf"
+                    onChange={handleChange}
+                  />
+                  <Button asChild variant="outline">
+                    <label htmlFor="resume-upload" className="cursor-pointer">
+                      Select File
+                    </label>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-8 h-8 text-primary" />
+                      <div>
+                        <p className="font-medium">{resumeFile.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(resumeFile.size / 1024).toFixed(2)} KB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setResumeFile(null);
+                        setResumeText('');
+                        setAnalysis(null);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="p-4 bg-muted/50 rounded-lg max-h-80 overflow-y-auto">
+                    <p className="text-sm whitespace-pre-wrap font-mono">
+                      {resumeText.substring(0, 500)}...
+                    </p>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    {resumeText.split(/\s+/).filter(w => w).length} words
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Button
@@ -111,12 +224,12 @@ export default function ResumeAnalyzer() {
               {analyzing ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Analyzing...
+                  Analyzing with AI...
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Analyze Resume
+                  Analyze Resume with AI
                 </>
               )}
             </Button>
