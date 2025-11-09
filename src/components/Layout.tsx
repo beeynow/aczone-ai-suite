@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { HelpChat } from "@/components/HelpChat";
+import JoinMeetingDialog from "@/components/JoinMeetingDialog";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -267,6 +268,9 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden md:block">
+              <JoinMeetingDialog />
+            </div>
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>

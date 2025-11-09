@@ -44,6 +44,7 @@ const App = () => (
             <Route path="resume-analyzer" element={<ResumeAnalyzer />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="referrals" element={<Referrals />} />
+            <Route path="achievements" element={<Achievements />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
