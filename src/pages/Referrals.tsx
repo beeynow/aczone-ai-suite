@@ -86,8 +86,7 @@ export default function Referrals() {
   };
 
   const getReferralLink = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/auth?ref=${referralCode}`;
+    return `https://tryinterview.site/auth?ref=${referralCode}`;
   };
 
   const copyLink = async () => {

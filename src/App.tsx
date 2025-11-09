@@ -17,6 +17,7 @@ import Analytics from "./pages/Analytics";
 import ResumeAnalyzer from "./pages/ResumeAnalyzer";
 import Leaderboard from "./pages/Leaderboard";
 import Referrals from "./pages/Referrals";
+import Achievements from "./pages/Achievements";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 

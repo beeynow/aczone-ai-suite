@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Calendar, Users, User, Clock, Award, Share2, Copy, Video } from "lucide-react";
+import { Plus, Calendar, Users, User, Clock, Award, Share2, Copy, Video, Target, Flame, MessageSquare, TrendingUp, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ShareInterviewModal from "@/components/ShareInterviewModal";
+import { ProgressCard } from "@/components/ProgressCard";
 
 interface Interview {
   id: string;
@@ -29,10 +30,14 @@ export default function Dashboard() {
   const [certificateCount, setCertificateCount] = useState(0);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+  const [userStats, setUserStats] = useState<any>(null);
+  const [recentAchievements, setRecentAchievements] = useState<any[]>([]);
 
   useEffect(() => {
     fetchInterviews();
     fetchCertificateCount();
+    fetchUserStats();
+    fetchRecentAchievements();
   }, []);
 
   const fetchInterviews = async () => {
@@ -87,6 +92,58 @@ export default function Dashboard() {
     }
   };
 
+  const fetchUserStats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await (supabase as any)
+        .from('user_points')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setUserStats(data);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
+
+  const fetchRecentAchievements = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await (supabase as any)
+        .from('user_achievements')
+        .select(`
+          *,
+          achievements:achievement_id (
+            name,
+            description,
+            badge_icon
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('unlocked_at', { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      setRecentAchievements(data || []);
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+    }
+  };
+
+  const getLevelProgress = () => {
+    if (!userStats) return { current: 0, next: 200, percentage: 0 };
+    const points = userStats.total_points;
+    if (points < 200) return { current: points, next: 200, percentage: (points / 200) * 100 };
+    if (points < 500) return { current: points - 200, next: 300, percentage: ((points - 200) / 300) * 100 };
+    return { current: points - 500, next: 1000, percentage: ((points - 500) / 500) * 100 };
+  };
+
   const fetchCertificateCount = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -130,7 +187,7 @@ export default function Dashboard() {
     setShareModalOpen(true);
   };
 
-  return (
+    return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -139,6 +196,16 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">
             Start AI interviews or create meeting rooms
           </p>
+          {userStats && (
+            <div className="flex items-center gap-3 mt-2">
+              <Badge variant="default" className="text-md px-3 py-1">
+                Level: {userStats.level}
+              </Badge>
+              <Badge variant="outline" className="text-md px-3 py-1">
+                {userStats.total_points} Points
+              </Badge>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button onClick={() => navigate('/create-interview')} size="lg" variant="outline">
@@ -151,6 +218,68 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Progress Section */}
+      {userStats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ProgressCard
+            title="Next Level"
+            current={getLevelProgress().current}
+            goal={getLevelProgress().next}
+            icon={Target}
+            color="text-primary"
+          />
+          <ProgressCard
+            title="Current Streak"
+            current={userStats.streak_days}
+            goal={30}
+            icon={Flame}
+            color="text-orange-500"
+          />
+          <ProgressCard
+            title="Interviews"
+            current={userStats.interviews_completed}
+            goal={25}
+            icon={MessageSquare}
+            color="text-blue-500"
+          />
+          <ProgressCard
+            title="Total Progress"
+            current={userStats.total_points}
+            goal={1000}
+            icon={TrendingUp}
+            color="text-green-500"
+          />
+        </div>
+      )}
+
+      {/* Recent Achievements */}
+      {recentAchievements.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              Recent Achievements
+            </h2>
+            <Button variant="ghost" onClick={() => navigate('/achievements')}>
+              View All
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {recentAchievements.map((achievement: any) => (
+              <div
+                key={achievement.id}
+                className="p-3 bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/30 rounded-lg"
+              >
+                <p className="font-semibold text-sm">{achievement.achievements.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {new Date(achievement.unlocked_at).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

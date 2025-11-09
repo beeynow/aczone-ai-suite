@@ -51,6 +51,7 @@ const navigation = [
   { name: "Resume Analyzer", href: "/resume-analyzer", icon: FileCheck },
   { name: "Certificates", href: "/certificates", icon: Award },
   { name: "Leaderboard", href: "/leaderboard", icon: Trophy, badge: "NEW" },
+  { name: "Achievements", href: "/achievements", icon: Award, badge: "NEW" },
   { name: "Referrals", href: "/referrals", icon: Gift },
 ];
 

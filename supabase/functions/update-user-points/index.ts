@@ -111,6 +111,20 @@ serve(async (req) => {
 
     console.log("User points updated successfully");
 
+    // Check for new achievements
+    try {
+      await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/check-achievements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        },
+        body: JSON.stringify({ userId })
+      });
+    } catch (error) {
+      console.error("Error checking achievements:", error);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 

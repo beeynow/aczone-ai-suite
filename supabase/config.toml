@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.update-user-points]
 verify_jwt = false
+
+[functions.check-achievements]
+verify_jwt = false

@@ -84,6 +84,10 @@ export default function MeetingRoom() {
     }
   };
 
+  const getMeetingLink = () => {
+    return `https://tryinterview.site/meeting/${id}`;
+  };
+
   const fetchMeeting = async () => {
     try {
       const { data, error } = await (supabase as any)
