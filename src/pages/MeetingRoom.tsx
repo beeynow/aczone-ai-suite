@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Sparkles, Share2 } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Sparkles, Share2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { VoiceMeetingClient } from "@/utils/VoiceMeeting";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import MeetingMinutesModal from "@/components/MeetingMinutesModal";
 
 interface Participant {
   id: string;
@@ -46,6 +47,8 @@ export default function MeetingRoom() {
   const [voiceClient, setVoiceClient] = useState<VoiceMeetingClient | null>(null);
   const [isVoiceConnected, setIsVoiceConnected] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [showMinutesModal, setShowMinutesModal] = useState(false);
+  const [meetingMinutes, setMeetingMinutes] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const PROJECT_ID = "zhiiqdczslrnvlyflmke";
 
@@ -386,7 +389,7 @@ export default function MeetingRoom() {
       if (error) throw error;
 
       // Save meeting minutes
-      await (supabase as any)
+      const { data: minutesData, error: minutesError } = await (supabase as any)
         .from('meeting_minutes')
         .insert({
           meeting_id: id,
@@ -395,10 +398,15 @@ export default function MeetingRoom() {
           action_items: data.actionItems || [],
           key_topics: data.keyPoints || [],
           participant_ratings: data.participantRatings || {},
-        });
+        })
+        .select()
+        .single();
 
+      if (minutesError) throw minutesError;
+
+      setMeetingMinutes(minutesData);
       toast.success('Meeting ended and minutes generated!');
-      navigate('/');
+      setShowMinutesModal(true);
     } catch (error) {
       console.error('Error ending meeting:', error);
       toast.error('Failed to end meeting');
@@ -628,6 +636,18 @@ export default function MeetingRoom() {
 
           {/* Right side - Additional controls */}
           <div className="flex items-center gap-2">
+            {meetingMinutes && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setShowMinutesModal(true)}
+                className="rounded-lg h-12 px-4 shadow-sm hover:scale-105 transition-transform"
+              >
+                <FileText className="w-5 h-5" />
+                <span className="ml-2 hidden md:inline">Minutes</span>
+              </Button>
+            )}
+            
             <Button
               variant={showChat ? "default" : "ghost"}
               size="lg"
@@ -650,6 +670,16 @@ export default function MeetingRoom() {
           </div>
         </div>
       </div>
+
+      {/* Meeting Minutes Modal */}
+      <MeetingMinutesModal
+        open={showMinutesModal}
+        onOpenChange={setShowMinutesModal}
+        minutes={meetingMinutes}
+        meetingTitle={meeting?.title || "Meeting"}
+        meetingDate={meeting?.start_time || new Date().toISOString()}
+        participants={participants.map(p => p.display_name)}
+      />
     </div>
   );
 }
