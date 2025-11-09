@@ -46,23 +46,29 @@ export default function Analytics() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load analytics
+      // Load analytics - direct query without joins
       const { data: analyticsData, error: analyticsError } = await supabase
         .from('interview_analytics')
         .select('*')
         .eq('user_id', user.id)
         .order('completed_at', { ascending: true });
 
-      if (analyticsError) throw analyticsError;
+      if (analyticsError) {
+        console.error('Analytics error:', analyticsError);
+        throw analyticsError;
+      }
 
-      // Load answers
+      // Load answers - direct query without joins
       const { data: answersData, error: answersError } = await supabase
         .from('interview_answers')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      if (answersError) throw answersError;
+      if (answersError) {
+        console.error('Answers error:', answersError);
+        throw answersError;
+      }
 
       setAnalytics(analyticsData || []);
       setAnswers(answersData || []);

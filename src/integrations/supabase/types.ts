@@ -1213,6 +1213,7 @@ export type Database = {
         Args: { _interview_id: string; _user_id: string }
         Returns: boolean
       }
+      user_org_ids: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
       app_role: "admin" | "user"

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Copy, Share2, Users, Gift, TrendingUp } from "lucide-react";
+import { Copy, Share2, Users, Gift, TrendingUp, QrCode } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { QRCodeSVG } from 'qrcode.react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function Referrals() {
   const [referralCode, setReferralCode] = useState<string>('');
@@ -122,127 +124,199 @@ export default function Referrals() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="container mx-auto py-8 px-4 max-w-7xl">
       {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold gradient-primary bg-clip-text text-transparent">
-          🎁 Referral Program
-        </h1>
-        <p className="text-muted-foreground">
-          Invite friends and earn 10 points for each successful signup!
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-3 mb-3">
+          <Gift className="w-12 h-12 text-primary" />
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Referral Program
+          </h1>
+        </div>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Invite friends and earn 10 points for each successful signup! Share your unique link or QR code.
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="p-6 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Total Referrals</p>
-              <p className="text-3xl font-bold">{stats.totalReferrals}</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Total Referrals</p>
+              <p className="text-4xl font-bold text-blue-600">{stats.totalReferrals}</p>
             </div>
-            <Users className="w-10 h-10 text-blue-500" />
+            <div className="p-4 bg-blue-500/10 rounded-full">
+              <Users className="w-8 h-8 text-blue-600" />
+            </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Successful Signups</p>
-              <p className="text-3xl font-bold">{stats.successfulSignups}</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Successful Signups</p>
+              <p className="text-4xl font-bold text-green-600">{stats.successfulSignups}</p>
             </div>
-            <TrendingUp className="w-10 h-10 text-green-500" />
+            <div className="p-4 bg-green-500/10 rounded-full">
+              <TrendingUp className="w-8 h-8 text-green-600" />
+            </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Points Earned</p>
-              <p className="text-3xl font-bold">{stats.totalPoints}</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Points Earned</p>
+              <p className="text-4xl font-bold text-yellow-600">{stats.totalPoints}</p>
             </div>
-            <Gift className="w-10 h-10 text-yellow-500" />
+            <div className="p-4 bg-yellow-500/10 rounded-full">
+              <Gift className="w-8 h-8 text-yellow-600" />
+            </div>
           </div>
         </Card>
       </div>
 
-      {/* Referral Link Card */}
-      <Card className="p-6 space-y-4">
-        <h2 className="text-xl font-semibold">Your Referral Link</h2>
-        <div className="flex gap-2">
-          <Input
-            value={getReferralLink()}
-            readOnly
-            className="font-mono"
-          />
-          <Button onClick={copyLink} variant="outline">
-            <Copy className="w-4 h-4 mr-2" />
-            Copy
-          </Button>
-          <Button onClick={shareLink} className="gradient-primary text-white">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
-          </Button>
-        </div>
-        <div className="p-4 bg-muted rounded-lg">
-          <p className="text-sm">
-            <strong>Your Referral Code:</strong> <span className="font-mono text-lg">{referralCode}</span>
-          </p>
-        </div>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Referral Link Card */}
+        <Card className="p-6 space-y-4 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Share2 className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold">Your Referral Link</h2>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={getReferralLink()}
+              readOnly
+              className="font-mono text-sm"
+            />
+            <Button onClick={copyLink} variant="outline" className="flex-shrink-0">
+              <Copy className="w-4 h-4 mr-2" />
+              Copy
+            </Button>
+            <Button onClick={shareLink} className="bg-gradient-primary text-white flex-shrink-0">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+          </div>
+          <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+            <p className="text-sm font-medium mb-1">Your Referral Code</p>
+            <p className="font-mono text-2xl font-bold text-primary">{referralCode}</p>
+          </div>
+        </Card>
+
+        {/* QR Code Card */}
+        <Card className="p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <QrCode className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold">QR Code</h2>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="p-4 bg-white rounded-lg border-2 border-primary/20">
+              <QRCodeSVG
+                value={getReferralLink()}
+                size={180}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="mt-4">
+                  View Full Size
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Referral QR Code</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col items-center p-4">
+                  <div className="p-6 bg-white rounded-lg">
+                    <QRCodeSVG
+                      value={getReferralLink()}
+                      size={300}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-4 text-center">
+                    Scan this QR code to visit your referral link
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </Card>
+      </div>
 
       {/* How It Works */}
-      <Card className="p-6 space-y-4">
-        <h2 className="text-xl font-semibold">How It Works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl font-bold text-primary">1</span>
+      <Card className="p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-6 text-center">How It Works</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
+              <span className="text-3xl font-bold text-primary">1</span>
             </div>
-            <h3 className="font-semibold mb-2">Share Your Link</h3>
+            <h3 className="font-semibold text-lg mb-2">Share Your Link</h3>
             <p className="text-sm text-muted-foreground">
-              Send your unique referral link to friends
+              Send your unique referral link or QR code to friends via social media, email, or messaging apps
             </p>
           </div>
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl font-bold text-primary">2</span>
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
+              <span className="text-3xl font-bold text-primary">2</span>
             </div>
-            <h3 className="font-semibold mb-2">They Sign Up</h3>
+            <h3 className="font-semibold text-lg mb-2">They Sign Up</h3>
             <p className="text-sm text-muted-foreground">
-              Your friends create an account using your link
+              Your friends create an account using your referral link and complete their profile
             </p>
           </div>
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl font-bold text-primary">3</span>
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
+              <span className="text-3xl font-bold text-primary">3</span>
             </div>
-            <h3 className="font-semibold mb-2">Earn Rewards</h3>
+            <h3 className="font-semibold text-lg mb-2">Earn Rewards</h3>
             <p className="text-sm text-muted-foreground">
-              Get 10 points for each successful signup
+              Get 10 points instantly for each successful signup that can be used for premium features
             </p>
           </div>
         </div>
       </Card>
 
       {/* Recent Referrals */}
-      <Card className="p-6 space-y-4">
-        <h2 className="text-xl font-semibold">Recent Referrals</h2>
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold mb-4">Recent Referrals</h2>
         {referrals.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            No referrals yet. Start sharing your link!
-          </p>
+          <div className="text-center py-12">
+            <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground text-lg">No referrals yet</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Start sharing your link to earn rewards!
+            </p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {referrals.map((referral) => (
-              <div key={referral.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="font-medium">
-                    {referral.referred_user_id ? 'Signed Up' : 'Pending'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(referral.created_at).toLocaleDateString()}
-                  </p>
+              <div key={referral.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${referral.signup_completed ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                  <div>
+                    <p className="font-medium">
+                      {referral.referred_user_id ? 'Successfully Signed Up ✓' : 'Pending Signup'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(referral.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
                 </div>
-                <Badge variant={referral.signup_completed ? "default" : "secondary"}>
+                <Badge 
+                  variant={referral.signup_completed ? "default" : "secondary"}
+                  className={referral.signup_completed ? "bg-green-500" : ""}
+                >
                   {referral.signup_completed ? `+${referral.reward_points} pts` : 'Pending'}
                 </Badge>
               </div>
