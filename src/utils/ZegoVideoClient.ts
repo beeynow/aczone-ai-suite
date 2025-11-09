@@ -4,19 +4,26 @@ import { supabase } from '@/integrations/supabase/client';
 export class ZegoVideoClient {
   private zg: ZegoExpressEngine | null = null;
   private localStream: MediaStream | null = null;
-  private remoteStreams: Map<string, MediaStream> = new Map();
+  private remoteStreams: Map<string, MediaStream> = new Map<string, MediaStream>();
   private appID: number = 0;
   private roomID: string = '';
   private userID: string = '';
   private userName: string = '';
   private isAudioMuted: boolean = false;
   private isVideoEnabled: boolean = true;
+  private onStreamAddCallback: (userID: string, stream: MediaStream) => void;
+  private onStreamRemoveCallback: (userID: string) => void;
+  private onErrorCallback: (error: string) => void;
 
   constructor(
-    private onStreamAdd: (userID: string, stream: MediaStream) => void,
-    private onStreamRemove: (userID: string) => void,
-    private onError: (error: string) => void
-  ) {}
+    onStreamAdd: (userID: string, stream: MediaStream) => void,
+    onStreamRemove: (userID: string) => void,
+    onError: (error: string) => void
+  ) {
+    this.onStreamAddCallback = onStreamAdd;
+    this.onStreamRemoveCallback = onStreamRemove;
+    this.onErrorCallback = onError;
+  }
 
   async init(roomID: string, userID: string, userName: string): Promise<void> {
     try {
@@ -55,7 +62,7 @@ export class ZegoVideoClient {
       console.log('ZegoCloud initialized successfully');
     } catch (error) {
       console.error('ZegoCloud init error:', error);
-      this.onError(error instanceof Error ? error.message : 'Failed to initialize video');
+      this.onErrorCallback(error instanceof Error ? error.message : 'Failed to initialize video');
       throw error;
     }
   }
@@ -64,13 +71,13 @@ export class ZegoVideoClient {
     if (!this.zg) return;
 
     // Handle remote stream added
-    this.zg.on('roomStreamUpdate', async (roomID, updateType, streamList) => {
+    this.zg.on('roomStreamUpdate', async (roomID: string, updateType: string, streamList: any[]) => {
       if (updateType === 'ADD') {
         for (const stream of streamList) {
           try {
             const remoteStream = await this.zg!.startPlayingStream(stream.streamID);
             this.remoteStreams.set(stream.user.userID, remoteStream);
-            this.onStreamAdd(stream.user.userID, remoteStream);
+            this.onStreamAddCallback(stream.user.userID, remoteStream);
           } catch (error) {
             console.error('Error playing remote stream:', error);
           }
@@ -79,20 +86,20 @@ export class ZegoVideoClient {
         for (const stream of streamList) {
           this.zg!.stopPlayingStream(stream.streamID);
           this.remoteStreams.delete(stream.user.userID);
-          this.onStreamRemove(stream.user.userID);
+          this.onStreamRemoveCallback(stream.user.userID);
         }
       }
     });
 
     // Handle room user updates
-    this.zg.on('roomUserUpdate', (roomID, updateType, userList) => {
+    this.zg.on('roomUserUpdate', (roomID: string, updateType: string, userList: any[]) => {
       console.log('Room user update:', updateType, userList);
     });
 
     // Handle errors
-    this.zg.on('roomStateUpdate', (roomID, state, errorCode, extendedData) => {
+    this.zg.on('roomStateUpdate', (roomID: string, state: string, errorCode: number, extendedData: any) => {
       if (state === 'DISCONNECTED') {
-        this.onError('Disconnected from room');
+        this.onErrorCallback('Disconnected from room');
       } else if (state === 'CONNECTING') {
         console.log('Connecting to room...');
       } else if (state === 'CONNECTED') {
@@ -109,13 +116,9 @@ export class ZegoVideoClient {
       this.localStream = await this.zg.createStream({
         camera: {
           audio: true,
-          video: {
-            width: 1280,
-            height: 720,
-            frameRate: 30
-          }
+          video: true
         }
-      });
+      }) as MediaStream;
 
       // Publish stream
       const streamID = `stream_${this.userID}_${Date.now()}`;
@@ -125,7 +128,7 @@ export class ZegoVideoClient {
       return this.localStream;
     } catch (error) {
       console.error('Error starting local stream:', error);
-      this.onError('Failed to access camera/microphone');
+      this.onErrorCallback('Failed to access camera/microphone');
       return null;
     }
   }
