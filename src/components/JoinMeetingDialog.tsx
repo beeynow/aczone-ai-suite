@@ -36,18 +36,19 @@ export default function JoinMeetingDialog() {
         return;
       }
 
-      // Check if meeting exists and is not ended
-      const { data: meeting, error: meetingError } = await supabase
+      // Check if meeting exists and is not ended (search by room_id OR id)
+      const { data: meetings, error: meetingError } = await supabase
         .from("meeting_sessions")
         .select("*")
-        .eq("room_id", roomId.trim())
-        .single();
+        .or(`room_id.eq.${roomId.trim().toUpperCase()},id.eq.${roomId.trim()}`);
 
-      if (meetingError || !meeting) {
-        toast.error("Meeting not found");
+      if (meetingError || !meetings || meetings.length === 0) {
+        toast.error("Meeting not found. Please check the meeting code.");
         setLoading(false);
         return;
       }
+
+      const meeting = meetings[0];
 
       // Check if meeting has ended
       if (meeting.end_time) {
@@ -91,13 +92,14 @@ export default function JoinMeetingDialog() {
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="meeting-id">Meeting ID</Label>
+            <Label htmlFor="meeting-id">Meeting Code</Label>
             <Input
               id="meeting-id"
-              placeholder="Enter meeting ID..."
+              placeholder="Enter meeting code (e.g., ABC123)..."
               value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
+              onChange={(e) => setRoomId(e.target.value.toUpperCase())}
               onKeyPress={(e) => e.key === "Enter" && joinMeeting()}
+              className="uppercase font-mono tracking-wider"
             />
           </div>
           <Button
