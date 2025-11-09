@@ -120,22 +120,41 @@ export default function MeetingRoom() {
     if (!meeting?.room_id || !currentUserId || !currentUserName) return;
 
     try {
+      console.log('[Meeting] Initializing video for room:', meeting.room_id);
+      
       const client = new ZegoVideoClient(
         (userID: string, stream: MediaStream) => {
-          console.log('Remote stream added:', userID);
-          setRemoteVideoStreams(prev => new Map(prev).set(userID, stream));
+          console.log('[Meeting] Remote stream added:', userID);
+          setRemoteVideoStreams(prev => {
+            const newMap = new Map(prev);
+            newMap.set(userID, stream);
+            return newMap;
+          });
+          
+          // Update participant video status
+          updateParticipantStatus(userID, { is_video_on: true });
         },
         (userID: string) => {
-          console.log('Remote stream removed:', userID);
+          console.log('[Meeting] Remote stream removed:', userID);
           setRemoteVideoStreams(prev => {
             const newMap = new Map(prev);
             newMap.delete(userID);
             return newMap;
           });
+          
+          // Update participant video status
+          updateParticipantStatus(userID, { is_video_on: false });
         },
         (error: string) => {
-          console.error('Video error:', error);
+          console.error('[Meeting] Video error:', error);
           toast.error(error);
+        },
+        (userID: string, updateType: 'add' | 'delete') => {
+          console.log(`[Meeting] User ${updateType}:`, userID);
+          if (updateType === 'delete') {
+            // User left, refresh participants
+            fetchParticipants();
+          }
         }
       );
 
@@ -146,10 +165,26 @@ export default function MeetingRoom() {
       setLocalVideoStream(localStream);
       setIsVideoOn(!!localStream);
       
+      // Update own video status in DB
+      await updateParticipantStatus(currentUserId, { is_video_on: !!localStream });
+      
       toast.success("Video connected");
+      console.log('[Meeting] Video initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize video:', error);
+      console.error('[Meeting] Failed to initialize video:', error);
       toast.error('Failed to start video. Using audio only.');
+    }
+  };
+
+  const updateParticipantStatus = async (userId: string, status: { is_video_on?: boolean; is_muted?: boolean }) => {
+    try {
+      await (supabase as any)
+        .from('meeting_participants')
+        .update(status)
+        .eq('meeting_id', id)
+        .eq('user_id', userId);
+    } catch (error) {
+      console.error('[Meeting] Error updating participant status:', error);
     }
   };
 
@@ -355,17 +390,10 @@ export default function MeetingRoom() {
       setIsAudioOn(!muted);
       
       // Update participant mute status in database
-      try {
-        await (supabase as any)
-          .from('meeting_participants')
-          .update({ is_muted: muted })
-          .eq('meeting_id', id)
-          .eq('user_id', currentUserId);
-      } catch (error) {
-        console.error('Error updating mute status:', error);
-      }
+      await updateParticipantStatus(currentUserId, { is_muted: muted });
       
       toast.success(muted ? "Microphone muted" : "Microphone unmuted");
+      console.log('[Meeting] Audio', muted ? 'muted' : 'unmuted');
       
       // Simulate speaking detection when unmuted
       if (!muted) {
@@ -381,30 +409,70 @@ export default function MeetingRoom() {
     }
   };
 
-  const toggleVideo = () => {
+  const toggleVideo = async () => {
     if (videoClient) {
       const enabled = videoClient.toggleVideo();
       setIsVideoOn(enabled);
+      
+      // Update participant video status in database
+      await updateParticipantStatus(currentUserId, { is_video_on: enabled });
+      
       toast.success(enabled ? "Camera on" : "Camera off");
+      console.log('[Meeting] Video', enabled ? 'enabled' : 'disabled');
     }
   };
 
   const subscribeToParticipants = () => {
     const channel = supabase
-      .channel(`meeting_participants_${id}`)
+      .channel(`meeting_participants_realtime_${id}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'meeting_participants',
           filter: `meeting_id=eq.${id}`,
         },
-        () => {
+        (payload) => {
+          console.log('[Meeting] New participant joined:', payload.new);
           fetchParticipants();
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'meeting_participants',
+          filter: `meeting_id=eq.${id}`,
+        },
+        (payload) => {
+          console.log('[Meeting] Participant updated:', payload.new);
+          // Update specific participant in state
+          setParticipants(prev => 
+            prev.map(p => p.user_id === (payload.new as any).user_id 
+              ? { ...p, ...(payload.new as any) }
+              : p
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'meeting_participants',
+          filter: `meeting_id=eq.${id}`,
+        },
+        (payload) => {
+          console.log('[Meeting] Participant left:', payload.old);
+          fetchParticipants();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Meeting] Participants subscription status:', status);
+      });
 
     fetchParticipants();
 

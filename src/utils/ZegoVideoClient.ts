@@ -5,24 +5,29 @@ export class ZegoVideoClient {
   private zg: ZegoExpressEngine | null = null;
   private localStream: MediaStream | null = null;
   private remoteStreams: Map<string, MediaStream> = new Map<string, MediaStream>();
+  private streamIDs: Map<string, string> = new Map<string, string>();
   private appID: number = 0;
   private roomID: string = '';
   private userID: string = '';
   private userName: string = '';
   private isAudioMuted: boolean = false;
   private isVideoEnabled: boolean = true;
+  private localStreamID: string = '';
   private onStreamAddCallback: (userID: string, stream: MediaStream) => void;
   private onStreamRemoveCallback: (userID: string) => void;
   private onErrorCallback: (error: string) => void;
+  private onUserUpdateCallback?: (userID: string, updateType: 'add' | 'delete') => void;
 
   constructor(
     onStreamAdd: (userID: string, stream: MediaStream) => void,
     onStreamRemove: (userID: string) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    onUserUpdate?: (userID: string, updateType: 'add' | 'delete') => void
   ) {
     this.onStreamAddCallback = onStreamAdd;
     this.onStreamRemoveCallback = onStreamRemove;
     this.onErrorCallback = onError;
+    this.onUserUpdateCallback = onUserUpdate;
   }
 
   async init(roomID: string, userID: string, userName: string): Promise<void> {
@@ -70,40 +75,92 @@ export class ZegoVideoClient {
   private setupEventListeners(): void {
     if (!this.zg) return;
 
-    // Handle remote stream added
+    // Handle remote stream updates
     this.zg.on('roomStreamUpdate', async (roomID: string, updateType: string, streamList: any[]) => {
+      console.log(`[ZegoVideo] Stream ${updateType}:`, streamList.map(s => ({ 
+        streamID: s.streamID, 
+        userID: s.user?.userID,
+        userName: s.user?.userName 
+      })));
+
       if (updateType === 'ADD') {
         for (const stream of streamList) {
           try {
+            // Start playing the remote stream
             const remoteStream = await this.zg!.startPlayingStream(stream.streamID);
-            this.remoteStreams.set(stream.user.userID, remoteStream);
-            this.onStreamAddCallback(stream.user.userID, remoteStream);
+            const userID = stream.user.userID;
+            
+            this.remoteStreams.set(userID, remoteStream);
+            this.streamIDs.set(userID, stream.streamID);
+            
+            console.log(`[ZegoVideo] Playing remote stream for user ${userID}`);
+            this.onStreamAddCallback(userID, remoteStream);
           } catch (error) {
-            console.error('Error playing remote stream:', error);
+            console.error('[ZegoVideo] Error playing remote stream:', error);
           }
         }
       } else if (updateType === 'DELETE') {
         for (const stream of streamList) {
-          this.zg!.stopPlayingStream(stream.streamID);
-          this.remoteStreams.delete(stream.user.userID);
-          this.onStreamRemoveCallback(stream.user.userID);
+          const userID = stream.user.userID;
+          const streamID = this.streamIDs.get(userID);
+          
+          if (streamID) {
+            try {
+              this.zg!.stopPlayingStream(streamID);
+            } catch (error) {
+              console.error('[ZegoVideo] Error stopping stream:', error);
+            }
+          }
+          
+          this.remoteStreams.delete(userID);
+          this.streamIDs.delete(userID);
+          this.onStreamRemoveCallback(userID);
+          
+          console.log(`[ZegoVideo] Removed stream for user ${userID}`);
         }
       }
     });
 
     // Handle room user updates
     this.zg.on('roomUserUpdate', (roomID: string, updateType: string, userList: any[]) => {
-      console.log('Room user update:', updateType, userList);
+      console.log(`[ZegoVideo] User ${updateType}:`, userList.map(u => ({ 
+        userID: u.userID, 
+        userName: u.userName 
+      })));
+      
+      if (this.onUserUpdateCallback) {
+        userList.forEach(user => {
+          this.onUserUpdateCallback!(
+            user.userID, 
+            updateType === 'ADD' ? 'add' : 'delete'
+          );
+        });
+      }
     });
 
-    // Handle errors
+    // Handle connection state changes
     this.zg.on('roomStateUpdate', (roomID: string, state: string, errorCode: number, extendedData: any) => {
+      console.log(`[ZegoVideo] Room state: ${state}, error: ${errorCode}`);
+      
       if (state === 'DISCONNECTED') {
         this.onErrorCallback('Disconnected from room');
       } else if (state === 'CONNECTING') {
-        console.log('Connecting to room...');
+        console.log('[ZegoVideo] Connecting to room...');
       } else if (state === 'CONNECTED') {
-        console.log('Connected to room');
+        console.log('[ZegoVideo] Connected to room successfully');
+      }
+    });
+
+    // Handle network quality updates
+    this.zg.on('publishQualityUpdate', (streamID: string, stats: any) => {
+      if (stats.quality < 2) {
+        console.warn('[ZegoVideo] Poor publish quality:', stats);
+      }
+    });
+
+    this.zg.on('playQualityUpdate', (streamID: string, stats: any) => {
+      if (stats.quality < 2) {
+        console.warn('[ZegoVideo] Poor playback quality:', stats);
       }
     });
   }
@@ -112,7 +169,9 @@ export class ZegoVideoClient {
     if (!this.zg) return null;
 
     try {
-      // Create local stream
+      console.log('[ZegoVideo] Creating local stream...');
+      
+      // Create local stream with optimal settings
       this.localStream = await this.zg.createStream({
         camera: {
           audio: true,
@@ -120,14 +179,18 @@ export class ZegoVideoClient {
         }
       }) as MediaStream;
 
-      // Publish stream
-      const streamID = `stream_${this.userID}_${Date.now()}`;
-      await this.zg.startPublishingStream(streamID, this.localStream);
+      // Generate unique stream ID
+      this.localStreamID = `stream_${this.userID}_${Date.now()}`;
+      
+      // Publish stream with config
+      await this.zg.startPublishingStream(this.localStreamID, this.localStream, {
+        videoCodec: 'H264'
+      });
 
-      console.log('Local stream started:', streamID);
+      console.log('[ZegoVideo] Local stream published:', this.localStreamID);
       return this.localStream;
     } catch (error) {
-      console.error('Error starting local stream:', error);
+      console.error('[ZegoVideo] Error starting local stream:', error);
       this.onErrorCallback('Failed to access camera/microphone');
       return null;
     }
@@ -159,23 +222,63 @@ export class ZegoVideoClient {
 
   async disconnect(): Promise<void> {
     try {
+      console.log('[ZegoVideo] Disconnecting...');
+      
+      // Stop publishing local stream
+      if (this.zg && this.localStreamID) {
+        try {
+          await this.zg.stopPublishingStream(this.localStreamID);
+        } catch (error) {
+          console.error('[ZegoVideo] Error stopping publish:', error);
+        }
+      }
+
+      // Stop all local tracks
       if (this.localStream) {
-        this.localStream.getTracks().forEach(track => track.stop());
+        this.localStream.getTracks().forEach(track => {
+          track.stop();
+          console.log('[ZegoVideo] Stopped track:', track.kind);
+        });
         this.localStream = null;
       }
 
+      // Stop all remote streams
+      this.streamIDs.forEach((streamID, userID) => {
+        try {
+          this.zg?.stopPlayingStream(streamID);
+        } catch (error) {
+          console.error(`[ZegoVideo] Error stopping remote stream ${streamID}:`, error);
+        }
+      });
+
+      // Logout from room
       if (this.zg) {
-        await this.zg.logoutRoom(this.roomID);
+        try {
+          await this.zg.logoutRoom(this.roomID);
+        } catch (error) {
+          console.error('[ZegoVideo] Error logging out:', error);
+        }
+        
+        // Remove all event listeners
         this.zg.off('roomStreamUpdate');
         this.zg.off('roomUserUpdate');
         this.zg.off('roomStateUpdate');
+        this.zg.off('publishQualityUpdate');
+        this.zg.off('playQualityUpdate');
       }
 
+      // Clear all maps
       this.remoteStreams.clear();
-      console.log('ZegoCloud disconnected');
+      this.streamIDs.clear();
+      
+      console.log('[ZegoVideo] Disconnected successfully');
     } catch (error) {
-      console.error('Error disconnecting:', error);
+      console.error('[ZegoVideo] Error during disconnect:', error);
     }
+  }
+
+  getAllRemoteStreams(): Map<string, MediaStream> {
+    return new Map(this.remoteStreams);
   }
 
   isMuted(): boolean {
