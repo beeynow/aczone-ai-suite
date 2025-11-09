@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Calendar, Users, User, Clock, Award, Share2, Copy } from "lucide-react";
+import { Plus, Calendar, Users, User, Clock, Award, Share2, Copy, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -135,15 +135,21 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Interview Dashboard</h1>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Manage and join your AI-powered interview sessions
+            Start AI interviews or create meeting rooms
           </p>
         </div>
-        <Button onClick={() => navigate('/create-interview')} size="lg">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Interview
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/create-interview')} size="lg" variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            AI Interview
+          </Button>
+          <Button onClick={() => navigate('/create-meeting')} size="lg">
+            <Video className="w-4 h-4 mr-2" />
+            Meeting Room
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

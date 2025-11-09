@@ -7,6 +7,8 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import CreateInterview from "./pages/CreateInterview";
 import InterviewRoom from "./pages/InterviewRoom";
+import CreateMeeting from "./pages/CreateMeeting";
+import MeetingRoom from "./pages/MeetingRoom";
 import JoinInterview from "./pages/JoinInterview";
 import Settings from "./pages/Settings";
 import Certificates from "./pages/Certificates";
@@ -33,6 +35,8 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="create-interview" element={<CreateInterview />} />
             <Route path="interview/:id" element={<InterviewRoom />} />
+            <Route path="create-meeting" element={<CreateMeeting />} />
+            <Route path="meeting/:id" element={<MeetingRoom />} />
             <Route path="certificates" element={<Certificates />} />
             <Route path="question-bank" element={<QuestionBank />} />
             <Route path="analytics" element={<Analytics />} />

@@ -31,7 +31,7 @@ export default function Referrals() {
         .from('referral_system')
         .select('referral_code')
         .eq('referrer_id', user.id)
-        .maybeSingle();
+        .maybeSingle() as any;
 
       if (!existingReferral) {
         // Generate unique referral code
@@ -55,7 +55,7 @@ export default function Referrals() {
       const { data: referralData, error: referralError } = await supabase
         .from('referral_system')
         .select('*')
-        .eq('referrer_id', user.id);
+        .eq('referrer_id', user.id) as any;
 
       if (referralError) throw referralError;
 

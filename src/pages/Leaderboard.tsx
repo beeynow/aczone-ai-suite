@@ -40,7 +40,7 @@ export default function Leaderboard() {
         .from('user_points')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle();
+        .maybeSingle() as any;
 
       if (error) throw error;
       setUserStats(data);
@@ -57,7 +57,7 @@ export default function Leaderboard() {
         .select('*')
         .eq('category', category)
         .order('points', { ascending: false })
-        .limit(100);
+        .limit(100) as any;
 
       if (error) throw error;
       

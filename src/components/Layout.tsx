@@ -23,6 +23,7 @@ import {
   FileCheck,
   Trophy,
   Gift,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,8 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Question Bank", href: "/question-bank", icon: Brain, badge: "NEW" },
   { name: "Join Interview", href: "/join-interview", icon: UserPlus },
-  { name: "Create Interview", href: "/create-interview", icon: FileText },
+  { name: "AI Interview", href: "/create-interview", icon: FileText },
+  { name: "Meeting Room", href: "/create-meeting", icon: Video, badge: "NEW" },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Resume Analyzer", href: "/resume-analyzer", icon: FileCheck },
   { name: "Certificates", href: "/certificates", icon: Award },
