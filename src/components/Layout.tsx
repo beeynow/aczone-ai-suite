@@ -36,6 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { HelpChat } from "@/components/HelpChat";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -416,6 +417,9 @@ export default function Layout() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Help Chat */}
+      <HelpChat userEmail={user.email} />
     </div>
   );
 }
