@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, X, Clock, Calendar, Award, MessageSquare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +31,8 @@ export default function NotificationsModal() {
   useEffect(() => {
     if (open) {
       fetchNotifications();
-      subscribeToNotifications();
+      const unsubscribe = subscribeToNotifications();
+      return unsubscribe;
     }
   }, [open]);
 
@@ -55,7 +56,7 @@ export default function NotificationsModal() {
 
   const subscribeToNotifications = () => {
     const channel = supabase
-      .channel('notifications_changes')
+      .channel('notifications')
       .on(
         'postgres_changes',
         {
@@ -84,11 +85,12 @@ export default function NotificationsModal() {
         .eq('id', id);
 
       if (error) throw error;
+      
       setNotifications(prev =>
         prev.map(n => (n.id === id ? { ...n, read: true } : n))
       );
     } catch (error) {
-      console.error('Error marking as read:', error);
+      console.error('Error marking notification as read:', error);
     }
   };
 
@@ -100,11 +102,12 @@ export default function NotificationsModal() {
         .eq('read', false);
 
       if (error) throw error;
+
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       toast.success("All notifications marked as read");
     } catch (error) {
       console.error('Error marking all as read:', error);
-      toast.error("Failed to mark all as read");
+      toast.error('Failed to mark all as read');
     }
   };
 
@@ -116,18 +119,26 @@ export default function NotificationsModal() {
         .eq('id', id);
 
       if (error) throw error;
+
       setNotifications(prev => prev.filter(n => n.id !== id));
       toast.success("Notification removed");
     } catch (error) {
       console.error('Error deleting notification:', error);
-      toast.error("Failed to delete notification");
+      toast.error('Failed to delete notification');
     }
   };
 
-  const getFilteredNotifications = () => {
-    if (activeTab === "all") return notifications;
-    if (activeTab === "unread") return notifications.filter(n => !n.read);
-    return notifications.filter(n => n.type === activeTab);
+  const getIcon = (type: string) => {
+    switch (type) {
+      case "interview":
+        return <Calendar className="w-4 h-4 text-blue-500" />;
+      case "achievement":
+        return <Award className="w-4 h-4 text-green-500" />;
+      case "meeting":
+        return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      default:
+        return <Bell className="w-4 h-4 text-muted-foreground" />;
+    }
   };
 
   const getTimeAgo = (date: string) => {
@@ -136,6 +147,12 @@ export default function NotificationsModal() {
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  const getFilteredNotifications = () => {
+    if (activeTab === "all") return notifications;
+    if (activeTab === "unread") return notifications.filter(n => !n.read);
+    return notifications.filter(n => n.type === activeTab);
   };
 
   const filteredNotifications = getFilteredNotifications();
@@ -204,7 +221,7 @@ export default function NotificationsModal() {
             <ScrollArea className="h-[450px]">
               {loading ? (
                 <div className="flex items-center justify-center py-16">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <p className="text-muted-foreground">Loading notifications...</p>
                 </div>
               ) : filteredNotifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center px-4">
@@ -219,34 +236,38 @@ export default function NotificationsModal() {
                   {filteredNotifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-6 py-4 hover:bg-muted/30 transition-colors duration-150 flex items-start gap-4 group relative ${
+                      className={`px-6 py-4 hover:bg-muted/30 transition-colors duration-150 flex items-start gap-4 group relative cursor-pointer ${
                         !notification.read ? 'bg-primary/5' : ''
                       }`}
+                      onClick={() => !notification.read && markAsRead(notification.id)}
                     >
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-background/80 to-background/60 shadow-md border border-border/20">
+                        {getIcon(notification.type)}
+                      </div>
+                      
                       <div className="flex-1 min-w-0 pt-1">
-                        <p className="font-semibold text-sm text-foreground">{notification.title}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
-                        <p className="text-xs text-muted-foreground mt-2">{getTimeAgo(notification.created_at)}</p>
+                        <h4 className="font-semibold text-sm text-foreground">{notification.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">{getTimeAgo(notification.created_at)}</span>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 pt-1">
                         {!notification.read && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => markAsRead(notification.id)}
-                          >
-                            <div className="h-2.5 w-2.5 rounded-full bg-primary" />
-                          </Button>
+                          <div className="h-2.5 w-2.5 rounded-full bg-primary" />
                         )}
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100"
-                          onClick={() => deleteNotification(notification.id)}
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all duration-200 rounded-lg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification.id);
+                          }}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -261,10 +282,15 @@ export default function NotificationsModal() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground hover:text-foreground h-8"
-            onClick={() => setOpen(false)}
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-medium text-sm h-8"
+            onClick={() => {
+              if (filteredNotifications.length > 0) {
+                filteredNotifications.forEach(n => deleteNotification(n.id));
+              }
+            }}
+            disabled={filteredNotifications.length === 0}
           >
-            Close
+            Clear all
           </Button>
           {unreadCount > 0 && (
             <Button
