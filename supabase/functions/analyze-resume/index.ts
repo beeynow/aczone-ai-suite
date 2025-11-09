@@ -20,18 +20,23 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are an expert career counselor and resume analyst. Analyze the provided resume and provide comprehensive feedback.
+    const systemPrompt = `You are an expert career counselor, ATS specialist, and resume analyst. Analyze the provided resume comprehensively.
 
 Analyze the resume on these dimensions (0-100):
 1. **Clarity**: How clear and well-organized is the resume?
 2. **Structure**: Quality of formatting, sections, and layout
 3. **Relevance**: How relevant are the skills and experiences?
+4. **ATS Score**: How well will this resume perform with Applicant Tracking Systems?
+5. **Impact**: How impactful are the achievements and descriptions?
 
 Also provide:
-- Suggested job roles that match the candidate's profile (array of 3-5 roles)
+- Suggested job roles that match the candidate's profile (array of 5-7 roles)
 - Improved version of the resume text with better wording and structure
 - Detailed analysis of strengths and weaknesses
 - Actionable recommendations for improvement
+- Missing keywords for target roles
+- ATS optimization tips
+- Industry-specific insights
 
 Language: ${language}
 
@@ -43,15 +48,23 @@ Respond in JSON format:
   "clarityRating": number,
   "structureRating": number,
   "relevanceRating": number,
-  "suggestedRoles": ["role1", "role2", "role3"],
+  "atsScore": number,
+  "impactScore": number,
+  "overallScore": number,
+  "suggestedRoles": ["role1", "role2", "role3", "role4", "role5"],
   "improvedText": "improved resume text",
   "analysis": {
-    "strengths": ["strength 1", "strength 2"],
-    "weaknesses": ["weakness 1", "weakness 2"],
-    "recommendations": ["rec 1", "rec 2"],
-    "keySkills": ["skill 1", "skill 2"],
-    "experienceLevel": "junior|mid|senior",
-    "industries": ["industry1", "industry2"]
+    "strengths": ["strength 1", "strength 2", "strength 3"],
+    "weaknesses": ["weakness 1", "weakness 2", "weakness 3"],
+    "recommendations": ["rec 1", "rec 2", "rec 3", "rec 4"],
+    "keySkills": ["skill 1", "skill 2", "skill 3"],
+    "missingKeywords": ["keyword1", "keyword2", "keyword3"],
+    "experienceLevel": "entry|junior|mid|senior|lead|executive",
+    "industries": ["industry1", "industry2"],
+    "atsOptimizationTips": ["tip1", "tip2", "tip3"],
+    "formatIssues": ["issue1", "issue2"],
+    "quantifiableAchievements": number,
+    "actionVerbsUsed": number
   }
 }`;
 
