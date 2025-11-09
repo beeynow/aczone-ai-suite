@@ -737,6 +737,7 @@ export type Database = {
           is_locked: boolean | null
           is_recording: boolean | null
           max_participants: number | null
+          meeting_code: string | null
           recording_url: string | null
           room_id: string
           start_time: string
@@ -754,6 +755,7 @@ export type Database = {
           is_locked?: boolean | null
           is_recording?: boolean | null
           max_participants?: number | null
+          meeting_code?: string | null
           recording_url?: string | null
           room_id: string
           start_time?: string
@@ -771,6 +773,7 @@ export type Database = {
           is_locked?: boolean | null
           is_recording?: boolean | null
           max_participants?: number | null
+          meeting_code?: string | null
           recording_url?: string | null
           room_id?: string
           start_time?: string

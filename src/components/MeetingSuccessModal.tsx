@@ -32,7 +32,7 @@ export default function MeetingSuccessModal({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const meetingUrl = `https://tryinterview.site/join-meeting/${meetingCode}`;
+  const meetingUrl = `${window.location.origin}/join-meeting/${meetingCode}`;
 
   const copyToClipboard = async (text: string, type: 'code' | 'link') => {
     try {

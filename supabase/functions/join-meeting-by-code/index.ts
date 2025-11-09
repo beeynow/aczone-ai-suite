@@ -53,11 +53,11 @@ serve(async (req) => {
 
     const normalized = code.trim().toUpperCase();
 
-    // Locate an active, unlocked meeting by code
+    // Locate an active, unlocked meeting by meeting code
     const { data: meetings, error: meetErr } = await supabaseAdmin
       .from('meeting_sessions')
       .select('*')
-      .eq('room_id', normalized)
+      .eq('meeting_code', normalized)
       .is('end_time', null)
       .limit(1);
 

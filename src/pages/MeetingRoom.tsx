@@ -167,44 +167,74 @@ export default function MeetingRoom() {
   }, [meeting?.start_time]);
 
   const loadUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        toast.error("Please sign in to access meetings");
+        navigate('/auth', { state: { returnTo: `/meeting/${id}` } });
+        return;
+      }
+
       setCurrentUserId(user.id);
       
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, email')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       setCurrentUserName(profile?.full_name || profile?.email || 'Anonymous');
+    } catch (error) {
+      console.error('Error loading user:', error);
+      toast.error("Authentication error");
+      navigate('/auth');
     }
   };
 
   const getMeetingLink = () => {
-    return `https://tryinterview.site/join-meeting/${meeting?.room_id || ''}`;
+    return `${window.location.origin}/join-meeting/${meeting?.meeting_code || ''}`;
   };
 
   const fetchMeeting = async () => {
     try {
+      // Check auth first
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        toast.error("Please sign in to access meetings");
+        navigate('/auth', { state: { returnTo: `/meeting/${id}` } });
+        return;
+      }
+
       const { data, error } = await (supabase as any)
         .from('meeting_sessions')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!data) {
+        toast.error('Meeting not found');
+        navigate('/');
+        return;
+      }
+      
       setMeeting(data);
     } catch (error) {
       console.error('Error fetching meeting:', error);
       toast.error('Failed to load meeting');
+      navigate('/');
     }
   };
 
   const joinMeeting = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        toast.error("Please sign in to join meetings");
+        navigate('/auth', { state: { returnTo: `/meeting/${id}` } });
+        return;
+      }
 
       // Fetch profile for display name
       const { data: profile } = await supabase
@@ -298,6 +328,7 @@ export default function MeetingRoom() {
         .subscribe();
     } catch (error) {
       console.error('Error joining meeting:', error);
+      toast.error('Failed to join meeting');
     }
   };
 

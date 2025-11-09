@@ -78,6 +78,7 @@ export default function CreateMeeting() {
             title: formData.title,
             description: formData.description,
             room_id: roomId,
+            meeting_code: meetingCode,
             host_id: user.id,
             max_participants: Number.isFinite(formData.max_participants) ? formData.max_participants : 10,
             start_time: startTime || new Date().toISOString(),
