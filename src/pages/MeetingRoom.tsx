@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Sparkles, Share2, FileText } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Sparkles, Share2, FileText, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { VoiceMeetingClient } from "@/utils/VoiceMeeting";
+import { ZegoVideoClient } from "@/utils/ZegoVideoClient";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import MeetingMinutesModal from "@/components/MeetingMinutesModal";
 
@@ -52,7 +53,11 @@ export default function MeetingRoom() {
   const [showMinutesModal, setShowMinutesModal] = useState(false);
   const [meetingMinutes, setMeetingMinutes] = useState<any>(null);
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
+  const [videoClient, setVideoClient] = useState<ZegoVideoClient | null>(null);
+  const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
+  const [remoteVideoStreams, setRemoteVideoStreams] = useState<Map<string, MediaStream>>(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
   const PROJECT_ID = "zhiiqdczslrnvlyflmke";
 
   useEffect(() => {
@@ -69,8 +74,23 @@ export default function MeetingRoom() {
     return () => {
       leaveMeeting();
       voiceClient?.disconnect();
+      videoClient?.disconnect();
     };
   }, [id]);
+
+  // Initialize video after user is loaded
+  useEffect(() => {
+    if (currentUserId && currentUserName && meeting?.room_id) {
+      initializeVideo();
+    }
+  }, [currentUserId, currentUserName, meeting?.room_id]);
+
+  // Update local video element
+  useEffect(() => {
+    if (localVideoRef.current && localVideoStream) {
+      localVideoRef.current.srcObject = localVideoStream;
+    }
+  }, [localVideoStream]);
 
   const initializeVoice = async () => {
     const client = new VoiceMeetingClient(
@@ -94,6 +114,43 @@ export default function MeetingRoom() {
     await client.connect();
     setIsVoiceConnected(true);
     toast.success("AI assistant joined the meeting");
+  };
+
+  const initializeVideo = async () => {
+    if (!meeting?.room_id || !currentUserId || !currentUserName) return;
+
+    try {
+      const client = new ZegoVideoClient(
+        (userID: string, stream: MediaStream) => {
+          console.log('Remote stream added:', userID);
+          setRemoteVideoStreams(prev => new Map(prev).set(userID, stream));
+        },
+        (userID: string) => {
+          console.log('Remote stream removed:', userID);
+          setRemoteVideoStreams(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(userID);
+            return newMap;
+          });
+        },
+        (error: string) => {
+          console.error('Video error:', error);
+          toast.error(error);
+        }
+      );
+
+      await client.init(meeting.room_id, currentUserId, currentUserName);
+      const localStream = client.getLocalStream();
+      
+      setVideoClient(client);
+      setLocalVideoStream(localStream);
+      setIsVideoOn(!!localStream);
+      
+      toast.success("Video connected");
+    } catch (error) {
+      console.error('Failed to initialize video:', error);
+      toast.error('Failed to start video. Using audio only.');
+    }
   };
 
   useEffect(() => {
@@ -262,8 +319,8 @@ export default function MeetingRoom() {
   };
 
   const toggleMute = async () => {
-    if (voiceClient) {
-      const muted = voiceClient.toggleMute();
+    if (videoClient) {
+      const muted = videoClient.toggleMute();
       setIsAudioOn(!muted);
       
       // Update participant mute status in database
@@ -290,6 +347,14 @@ export default function MeetingRoom() {
           });
         }, 2000);
       }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (videoClient) {
+      const enabled = videoClient.toggleVideo();
+      setIsVideoOn(enabled);
+      toast.success(enabled ? "Camera on" : "Camera off");
     }
   };
 
@@ -579,94 +644,137 @@ export default function MeetingRoom() {
             </div>
           )}
 
-          {/* Video Grid - Compact layout like Zoom/Teams with a large active speaker tile */}
-          {(() => {
-            const active = participants.find(p => speakingUsers.has(p.user_id)) || participants[0];
-            const ordered = active 
-              ? [active, ...participants.filter(p => p.id !== active.id)]
-              : participants;
-            return (
-              <div className="grid gap-2 max-w-7xl w-full grid-cols-2 md:grid-cols-4 auto-rows-[120px] md:auto-rows-[140px]">
-                {ordered.map((participant, idx) => {
-                  const isSpeaking = speakingUsers.has(participant.user_id);
-                  const tileClasses = idx === 0
-                    ? 'md:col-span-2 md:row-span-2 aspect-video'
-                    : 'aspect-[4/3]';
-                  return (
-                    <Card 
-                      key={participant.id} 
-                      className={`relative overflow-hidden transition-all duration-200 ${tileClasses} ${
-                        isSpeaking 
-                          ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
-                          : 'ring-2 ring-border/30 hover:ring-border/60'
-                      }`}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted/80 to-background/80">
+          {/* Main Video Area - Large active speaker */}
+          <div className="flex-1 flex flex-col gap-3 max-w-7xl w-full mx-auto">
+            {/* Large Active Speaker Video */}
+            <Card className="flex-1 relative overflow-hidden bg-muted/30">
+              {(() => {
+                const activeSpeaker = participants.find(p => speakingUsers.has(p.user_id)) || participants[0];
+                const isLocalUser = activeSpeaker?.user_id === currentUserId;
+                const stream = isLocalUser ? localVideoStream : remoteVideoStreams.get(activeSpeaker?.user_id || '');
+                
+                return (
+                  <>
+                    {stream && isVideoOn ? (
+                      <video
+                        ref={isLocalUser ? localVideoRef : undefined}
+                        autoPlay
+                        playsInline
+                        muted={isLocalUser}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        {...(!isLocalUser && { srcObject: stream } as any)}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted/60 to-background/60">
                         <div className="text-center">
-                          {participant.avatar_url ? (
-                            <img 
-                              src={participant.avatar_url} 
-                              alt={participant.display_name}
-                              className={`rounded-full mx-auto mb-1 object-cover ${idx === 0 ? 'w-24 h-24' : 'w-10 h-10'} ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}
-                            />
-                          ) : (
-                            <div className={`rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center mx-auto mb-1 ${idx === 0 ? 'w-24 h-24' : 'w-10 h-10'} ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}>
-                              <span className={`font-bold text-foreground ${idx === 0 ? 'text-3xl' : 'text-base'}`}>
-                                {participant.display_name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <p className={`font-medium ${idx === 0 ? 'text-base' : 'text-xs'}`}>
-                            {participant.display_name}
-                            {participant.user_id === currentUserId && (
-                              <span className="text-xs text-muted-foreground ml-1">(You)</span>
-                            )}
-                          </p>
-                          {participant.is_host && (
-                            <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">Host</Badge>
+                          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center mx-auto mb-4">
+                            <span className="text-6xl font-bold text-foreground">
+                              {activeSpeaker?.display_name?.charAt(0).toUpperCase() || 'M'}
+                            </span>
+                          </div>
+                          <p className="text-2xl font-medium">{activeSpeaker?.display_name || 'Meeting Room'}</p>
+                          {!isVideoOn && isLocalUser && (
+                            <p className="text-sm text-muted-foreground mt-2">Camera is off</p>
                           )}
                         </div>
                       </div>
-                      <div className="absolute bottom-2 left-2">
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full backdrop-blur-sm text-xs ${
-                          participant.is_muted 
-                            ? 'bg-destructive/90 text-destructive-foreground' 
-                            : 'bg-background/90 border border-primary/50'
-                        }`}>
-                          {participant.is_muted ? (
-                            <MicOff className="w-3 h-3" />
-                          ) : (
-                            <Mic className={`w-3 h-3 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-
-                {/* AI Assistant Card */}
-                <Card className={`relative overflow-hidden transition-all duration-200 aspect-[4/3] ${
-                  isAiSpeaking 
-                    ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
-                    : 'ring-2 ring-primary/30'
-                } bg-gradient-to-br from-primary/10 via-background/80 to-accent/10`}>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className={`rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-1 w-10 h-10 ${isAiSpeaking ? 'ring-4 ring-primary animate-pulse shadow-lg shadow-primary/50' : ''}`}>
-                        <Sparkles className={`text-white w-5 h-5`} />
-                      </div>
-                      <p className={`font-medium text-xs`}>
-                        AI Assistant
+                    )}
+                    
+                    {/* Participant name overlay */}
+                    <div className="absolute bottom-4 left-4 backdrop-blur-sm bg-background/80 px-4 py-2 rounded-lg">
+                      <p className="font-medium text-sm flex items-center gap-2">
+                        {activeSpeaker?.display_name}
+                        {activeSpeaker?.user_id === currentUserId && " (You)"}
+                        {activeSpeaker?.is_host && <Badge variant="secondary" className="text-xs">Host</Badge>}
+                        {speakingUsers.has(activeSpeaker?.user_id || '') && (
+                          <span className="flex items-center gap-1 text-primary">
+                            <Mic className="w-3 h-3 animate-pulse" />
+                          </span>
+                        )}
                       </p>
-                      <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">
-                        {isAiSpeaking ? 'Speaking' : 'Listening'}
-                      </Badge>
                     </div>
+                  </>
+                );
+              })()}
+            </Card>
+
+            {/* Participant Thumbnails */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {/* Local user */}
+              <Card className={`relative flex-shrink-0 w-32 h-24 overflow-hidden ${
+                currentUserId && speakingUsers.has(currentUserId) 
+                  ? 'ring-2 ring-primary' 
+                  : 'ring-1 ring-border/30'
+              }`}>
+                {localVideoStream && isVideoOn ? (
+                  <video
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-cover"
+                    ref={(el) => { if (el && localVideoStream) el.srcObject = localVideoStream; }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted/60">
+                    <span className="text-xl font-bold">{currentUserName?.charAt(0).toUpperCase()}</span>
                   </div>
-                </Card>
-              </div>
-            );
-          })()}
+                )}
+                <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded">
+                  You {!isAudioOn && <MicOff className="w-2.5 h-2.5 inline ml-0.5" />}
+                </div>
+              </Card>
+
+              {/* Remote participants */}
+              {participants.filter(p => p.user_id !== currentUserId).map((participant) => {
+                const stream = remoteVideoStreams.get(participant.user_id);
+                const isSpeaking = speakingUsers.has(participant.user_id);
+                
+                return (
+                  <Card 
+                    key={participant.id}
+                    className={`relative flex-shrink-0 w-32 h-24 overflow-hidden ${
+                      isSpeaking ? 'ring-2 ring-primary' : 'ring-1 ring-border/30'
+                    }`}
+                  >
+                    {stream && participant.is_video_on ? (
+                      <video
+                        autoPlay
+                        playsInline
+                        className="absolute inset-0 w-full h-full object-cover"
+                        ref={(el) => { if (el && stream) el.srcObject = stream; }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted/60">
+                        <span className="text-xl font-bold">
+                          {participant.display_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                      {participant.display_name} {participant.is_muted && <MicOff className="w-2.5 h-2.5 inline ml-0.5" />}
+                    </div>
+                    {participant.is_host && (
+                      <div className="absolute top-1 right-1">
+                        <Badge variant="secondary" className="text-[8px] px-1 py-0">Host</Badge>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+
+              {/* AI Assistant thumbnail */}
+              <Card className={`relative flex-shrink-0 w-32 h-24 overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20 ${
+                isAiSpeaking ? 'ring-2 ring-primary' : 'ring-1 ring-primary/30'
+              }`}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Sparkles className={`w-8 h-8 text-primary ${isAiSpeaking ? 'animate-pulse' : ''}`} />
+                </div>
+                <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded">
+                  AI {isAiSpeaking && '🔊'}
+                </div>
+              </Card>
+            </div>
+          </div>
 
         </div>
 
@@ -728,10 +836,21 @@ export default function MeetingRoom() {
             <Button
               variant={isVideoOn ? "default" : "secondary"}
               size="lg"
-              onClick={() => setIsVideoOn(!isVideoOn)}
+              onClick={toggleVideo}
               className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform"
+              disabled={!videoClient}
             >
               {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform"
+              title="Screen share (coming soon)"
+              disabled
+            >
+              <Monitor className="w-6 h-6" />
             </Button>
 
             {meeting.host_id === currentUserId ? (
