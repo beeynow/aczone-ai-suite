@@ -1,55 +1,79 @@
-import { useState, useEffect } from "react";
-import { Bell, Check, X, Clock, UserCheck, Calendar } from "lucide-react";
+import { useState } from "react";
+import { Bell, X, Trash2, Archive } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 interface Notification {
   id: string;
-  title: string;
-  message: string;
-  type: "interview" | "achievement" | "system";
+  user_name: string;
+  user_avatar?: string;
+  action: string;
+  time: string;
   read: boolean;
-  created_at: string;
+  action_button?: {
+    label: string;
+    action: () => void;
+  };
 }
 
 export default function NotificationsModal() {
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: "1",
-      title: "Interview Scheduled",
-      message: "Your interview for Senior Developer position is scheduled for tomorrow",
-      type: "interview",
+      user_name: "Noah Anderson",
+      user_avatar: undefined,
+      action: "liked your post",
+      time: "2 hours ago",
       read: false,
-      created_at: new Date().toISOString(),
     },
     {
       id: "2",
-      title: "Achievement Unlocked!",
-      message: "You've completed 5 interviews! Keep up the great work.",
-      type: "achievement",
+      user_name: "Olivia Parker",
+      user_avatar: undefined,
+      action: "mentioned you in a comment.",
+      time: "3 hours ago",
       read: false,
-      created_at: new Date(Date.now() - 3600000).toISOString(),
     },
     {
       id: "3",
-      title: "Profile Updated",
-      message: "Your profile has been successfully updated",
-      type: "system",
+      user_name: "Ethan Ramirez",
+      user_avatar: undefined,
+      action: "liked your post.",
+      time: "6 hours ago",
+      read: false,
+    },
+    {
+      id: "4",
+      user_name: "Lucas Mitchell",
+      user_avatar: undefined,
+      action: "followed you.",
+      time: "8 hours ago",
+      read: false,
+      action_button: {
+        label: "Follow Back",
+        action: () => toast.success("Followed back!"),
+      },
+    },
+    {
+      id: "5",
+      user_name: "Emily Johnson",
+      user_avatar: undefined,
+      action: "liked your post.",
+      time: "1 day ago",
       read: true,
-      created_at: new Date(Date.now() - 7200000).toISOString(),
     },
   ]);
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -69,24 +93,14 @@ export default function NotificationsModal() {
     toast.success("Notification removed");
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "interview":
-        return <Calendar className="w-4 h-4 text-blue-500" />;
-      case "achievement":
-        return <UserCheck className="w-4 h-4 text-green-500" />;
-      default:
-        return <Bell className="w-4 h-4 text-muted-foreground" />;
-    }
+  const getFilteredNotifications = () => {
+    if (activeTab === "all") return notifications;
+    if (activeTab === "following") return notifications.filter(n => n.action.includes("followed"));
+    if (activeTab === "archive") return notifications.filter(n => n.read);
+    return notifications;
   };
 
-  const getTimeAgo = (date: string) => {
-    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
-    if (seconds < 60) return "just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  };
+  const filteredNotifications = getFilteredNotifications();
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -105,99 +119,133 @@ export default function NotificationsModal() {
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="w-80 md:w-96 p-0 border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] backdrop-blur-xl bg-background/95 rounded-2xl overflow-hidden"
+        className="w-[500px] p-0 border-none shadow-xl bg-background rounded-3xl overflow-hidden"
         sideOffset={8}
       >
-        <div className="flex items-center justify-between p-5 border-b border-border/30 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/5">
-          <h3 className="font-bold text-lg flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-primary/10 backdrop-blur-sm">
-              <Bell className="w-[1.1rem] h-[1.1rem] text-primary" />
-            </div>
-            <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              Notifications
-            </span>
-          </h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={markAllAsRead}
-              className="text-xs h-8 px-3 hover:bg-primary/10 hover:text-primary transition-all duration-200 rounded-lg font-medium"
-            >
-              <Check className="w-3.5 h-3.5 mr-1.5" />
-              Mark all read
-            </Button>
-          )}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+          <h2 className="text-xl font-bold text-foreground">Your Notifications</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-lg hover:bg-muted"
+            onClick={() => setOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <ScrollArea className="h-[420px]">
-          {notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <div className="bg-gradient-to-br from-primary/20 to-accent/10 p-6 rounded-2xl mb-5 shadow-inner">
-                <Bell className="w-14 h-14 text-primary" />
-              </div>
-              <p className="text-base font-semibold text-foreground">No notifications yet</p>
-              <p className="text-sm text-muted-foreground mt-2 max-w-[200px]">You're all caught up! 🎉</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border/30">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-5 hover:bg-accent/20 transition-all duration-200 cursor-pointer relative group ${
-                    !notification.read ? "bg-primary/5 border-l-[3px] border-l-primary shadow-sm" : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="mt-0.5 p-2.5 rounded-xl bg-gradient-to-br from-background/80 to-background/60 shadow-md border border-border/20">
-                      {getIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-[0.9rem] truncate text-foreground">
-                          {notification.title}
-                        </h4>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 -mt-0.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all duration-200 rounded-lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNotification(notification.id);
-                          }}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                      <p className="text-[0.8rem] text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center gap-3 mt-3.5">
-                        <span className="text-[0.75rem] text-muted-foreground/90 flex items-center gap-1.5 bg-muted/40 px-2.5 py-1.5 rounded-lg border border-border/20">
-                          <Clock className="w-3 h-3" />
-                          {getTimeAgo(notification.created_at)}
-                        </span>
-                        {!notification.read && (
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="px-6 pt-4 border-b border-border/30">
+            <TabsList className="w-full justify-start gap-6 bg-transparent border-b-0 h-auto p-0">
+              <TabsTrigger 
+                value="all" 
+                className="relative pb-3 px-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary font-semibold"
+              >
+                All
+                {notifications.length > 0 && (
+                  <Badge className="ml-2 h-5 px-2 bg-muted text-muted-foreground font-normal rounded-full">
+                    {notifications.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="following"
+                className="relative pb-3 px-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary font-semibold"
+              >
+                Following
+              </TabsTrigger>
+              <TabsTrigger 
+                value="archive"
+                className="relative pb-3 px-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary font-semibold"
+              >
+                Archive
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value={activeTab} className="m-0 focus-visible:outline-none focus-visible:ring-0">
+            <ScrollArea className="h-[450px]">
+              {filteredNotifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                  <div className="bg-muted/50 p-6 rounded-2xl mb-4">
+                    <Bell className="w-12 h-12 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold text-foreground">No notifications yet</p>
+                  <p className="text-sm text-muted-foreground mt-2">You're all caught up! 🎉</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {filteredNotifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className="px-6 py-4 hover:bg-muted/30 transition-colors duration-150 flex items-start gap-4 group relative"
+                    >
+                      <Avatar className="h-12 w-12 border-2 border-border/20">
+                        <AvatarImage src={notification.user_avatar} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {notification.user_name.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0 pt-1">
+                        <p className="text-sm text-foreground">
+                          <span className="font-semibold">{notification.user_name}</span>{" "}
+                          <span className="text-muted-foreground">{notification.action}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">{notification.time}</p>
+                        {notification.action_button && (
                           <Button
-                            variant="ghost"
                             size="sm"
-                            className="h-7 text-[0.75rem] px-3 hover:bg-primary/10 hover:text-primary transition-all duration-200 rounded-lg font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              markAsRead(notification.id);
-                            }}
+                            className="mt-3 h-8 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg"
+                            onClick={notification.action_button.action}
                           >
-                            <Check className="w-3 h-3 mr-1.5" />
-                            Mark read
+                            {notification.action_button.label}
                           </Button>
                         )}
                       </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        {!notification.read && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-primary" />
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+              onClick={() => toast.info("Archive feature coming soon")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+              onClick={() => toast.info("Settings feature coming soon")}
+            >
+              <Archive className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary hover:bg-primary/10 font-semibold text-sm h-8"
+            onClick={markAllAsRead}
+          >
+            <Bell className="h-4 w-4 mr-2" />
+            Mark all as read
+          </Button>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
