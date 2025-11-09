@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          badge_icon: string
+          category: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          points_reward: number
+          requirement_type: string
+          requirement_value: number
+        }
+        Insert: {
+          badge_icon: string
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+          points_reward?: number
+          requirement_type: string
+          requirement_value: number
+        }
+        Update: {
+          badge_icon?: string
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          points_reward?: number
+          requirement_type?: string
+          requirement_value?: number
+        }
+        Relationships: []
+      }
       candidate_reports: {
         Row: {
           candidate_id: string
@@ -147,6 +183,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      help_support_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          response: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          response?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          response?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       interview_analytics: {
         Row: {
@@ -497,6 +563,230 @@ export type Database = {
         }
         Relationships: []
       }
+      leaderboard_entries: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          period: string | null
+          points: number | null
+          rank: number | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          period?: string | null
+          points?: number | null
+          rank?: number | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          period?: string | null
+          points?: number | null
+          rank?: number | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      meeting_chat: {
+        Row: {
+          created_at: string
+          id: string
+          meeting_id: string | null
+          message: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meeting_id?: string | null
+          message: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meeting_id?: string | null
+          message?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_chat_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_minutes: {
+        Row: {
+          action_items: Json | null
+          confidence_scores: Json | null
+          created_at: string
+          full_transcript: string | null
+          id: string
+          key_topics: Json | null
+          meeting_id: string | null
+          participant_ratings: Json | null
+          summary: string
+        }
+        Insert: {
+          action_items?: Json | null
+          confidence_scores?: Json | null
+          created_at?: string
+          full_transcript?: string | null
+          id?: string
+          key_topics?: Json | null
+          meeting_id?: string | null
+          participant_ratings?: Json | null
+          summary: string
+        }
+        Update: {
+          action_items?: Json | null
+          confidence_scores?: Json | null
+          created_at?: string
+          full_transcript?: string | null
+          id?: string
+          key_topics?: Json | null
+          meeting_id?: string | null
+          participant_ratings?: Json | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_minutes_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_participants: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          is_host: boolean | null
+          is_kicked: boolean | null
+          is_muted: boolean | null
+          is_video_on: boolean | null
+          joined_at: string
+          left_at: string | null
+          meeting_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          is_host?: boolean | null
+          is_kicked?: boolean | null
+          is_muted?: boolean | null
+          is_video_on?: boolean | null
+          joined_at?: string
+          left_at?: string | null
+          meeting_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_host?: boolean | null
+          is_kicked?: boolean | null
+          is_muted?: boolean | null
+          is_video_on?: boolean | null
+          joined_at?: string
+          left_at?: string | null
+          meeting_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_sessions: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          end_time: string | null
+          host_id: string
+          id: string
+          interview_id: string | null
+          is_locked: boolean | null
+          is_recording: boolean | null
+          max_participants: number | null
+          recording_url: string | null
+          room_id: string
+          start_time: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          host_id: string
+          id?: string
+          interview_id?: string | null
+          is_locked?: boolean | null
+          is_recording?: boolean | null
+          max_participants?: number | null
+          recording_url?: string | null
+          room_id: string
+          start_time?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          host_id?: string
+          id?: string
+          interview_id?: string | null
+          is_locked?: boolean | null
+          is_recording?: boolean | null
+          max_participants?: number | null
+          recording_url?: string | null
+          room_id?: string
+          start_time?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_sessions_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -628,6 +918,68 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_system: {
+        Row: {
+          created_at: string
+          id: string
+          referral_code: string
+          referred_user_id: string | null
+          referrer_id: string
+          reward_points: number | null
+          signup_completed: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_user_id?: string | null
+          referrer_id: string
+          reward_points?: number | null
+          signup_completed?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_user_id?: string | null
+          referrer_id?: string
+          reward_points?: number | null
+          signup_completed?: boolean | null
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          created_at: string
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          created_at?: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          created_at?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_collection_certificates: {
         Row: {
           avg_score: number
@@ -665,6 +1017,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_points: {
+        Row: {
+          created_at: string
+          id: string
+          interviews_completed: number | null
+          last_activity_date: string | null
+          level: string | null
+          referrals_count: number | null
+          streak_days: number | null
+          total_points: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interviews_completed?: number | null
+          last_activity_date?: string | null
+          level?: string | null
+          referrals_count?: number | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interviews_completed?: number | null
+          last_activity_date?: string | null
+          level?: string | null
+          referrals_count?: number | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -767,6 +1158,36 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number | null
+          id: string
+          last_activity_date: string | null
+          longest_streak: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
