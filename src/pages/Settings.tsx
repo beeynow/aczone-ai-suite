@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import PriceRangeSlider from "@/components/PriceRangeSlider";
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -193,6 +194,16 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="preferences" className="space-y-4">
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5">
+              <CardTitle>💰 Get More Points</CardTitle>
+              <CardDescription>Purchase points to unlock premium features</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <PriceRangeSlider />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
@@ -202,7 +213,7 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label>Theme</Label>
                 <p className="text-sm text-muted-foreground">
-                  Toggle between light and dark mode using the buttons in the sidebar footer.
+                  Toggle between light and dark mode using the button in the header.
                 </p>
               </div>
             </CardContent>

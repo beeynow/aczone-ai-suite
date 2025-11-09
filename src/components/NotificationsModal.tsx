@@ -103,15 +103,22 @@ export default function NotificationsModal() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 md:w-96 p-0">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold text-lg">Notifications</h3>
+      <DropdownMenuContent 
+        align="end" 
+        className="w-80 md:w-96 p-0 border-2 shadow-2xl backdrop-blur-sm bg-card/95"
+        sideOffset={8}
+      >
+        <div className="flex items-center justify-between p-4 border-b-2 border-border/50 bg-gradient-to-r from-primary/5 to-accent/5">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <Bell className="w-5 h-5 text-primary" />
+            Notifications
+          </h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllAsRead}
-              className="text-xs"
+              className="text-xs hover:bg-primary/10 transition-smooth"
             >
               <Check className="w-3 h-3 mr-1" />
               Mark all read
@@ -121,39 +128,47 @@ export default function NotificationsModal() {
         <ScrollArea className="h-[400px]">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Bell className="w-12 h-12 text-muted-foreground/50 mb-3" />
-              <p className="text-sm text-muted-foreground">No notifications</p>
+              <div className="bg-primary/10 p-4 rounded-full mb-4">
+                <Bell className="w-12 h-12 text-primary" />
+              </div>
+              <p className="text-sm font-medium">No notifications yet</p>
+              <p className="text-xs text-muted-foreground mt-1">You're all caught up! 🎉</p>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-border/50">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 hover:bg-muted/50 transition-colors ${
-                    !notification.read ? "bg-primary/5" : ""
+                  className={`p-4 hover:bg-accent/30 transition-smooth cursor-pointer relative ${
+                    !notification.read ? "bg-primary/10 border-l-4 border-l-primary" : ""
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="mt-1">{getIcon(notification.type)}</div>
+                    <div className="mt-1 p-2 rounded-lg bg-background/50 shadow-sm">
+                      {getIcon(notification.type)}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-medium text-sm truncate">
+                        <h4 className="font-semibold text-sm truncate">
                           {notification.title}
                         </h4>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 -mt-1"
-                          onClick={() => deleteNotification(notification.id)}
+                          className="h-6 w-6 -mt-1 hover:bg-destructive/10 hover:text-destructive transition-smooth"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification.id);
+                          }}
                         >
                           <X className="w-3 h-3" />
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
                         {notification.message}
                       </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <div className="flex items-center gap-3 mt-3">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md">
                           <Clock className="w-3 h-3" />
                           {getTimeAgo(notification.created_at)}
                         </span>
@@ -161,10 +176,14 @@ export default function NotificationsModal() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 text-xs px-2"
-                            onClick={() => markAsRead(notification.id)}
+                            className="h-6 text-xs px-2 hover:bg-primary/10 hover:text-primary transition-smooth"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAsRead(notification.id);
+                            }}
                           >
-                            Mark as read
+                            <Check className="w-3 h-3 mr-1" />
+                            Mark read
                           </Button>
                         )}
                       </div>

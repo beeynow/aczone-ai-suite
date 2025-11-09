@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { MessageCircle, X, Send, Sparkles, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { MessageCircle, X, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface Message {
   id: string;
@@ -20,12 +21,21 @@ export function HelpChat({ userEmail }: { userEmail?: string }) {
     {
       id: "1",
       role: "assistant",
-      content: "Hello! 👋 I'm your AI assistant. How can I help you with TryInterview today?",
+      content: "Hey there! 👋 I'm your friendly AI assistant, and I'm super excited to help you today! Let's make your interview experience awesome together! ✨",
       timestamp: new Date(),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -40,6 +50,7 @@ export function HelpChat({ userEmail }: { userEmail?: string }) {
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
+    scrollToBottom();
 
     try {
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/help-chat`;
@@ -170,32 +181,36 @@ export function HelpChat({ userEmail }: { userEmail?: string }) {
       {/* Floating Chat Button */}
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-gradient-primary text-white hover:opacity-90 transition-smooth z-50"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-gradient-to-br from-primary to-accent text-white hover:scale-110 transition-smooth glow-primary z-50 group"
         size="icon"
       >
-        <MessageCircle className="h-6 w-6" />
+        <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-smooth" />
+        <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-yellow-400 animate-pulse" />
       </Button>
 
       {/* Chat Sheet */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
+        <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col border-2 shadow-2xl">
           {/* Header */}
-          <SheetHeader className="px-6 py-4 border-b border-border bg-gradient-primary">
+          <SheetHeader className="px-6 py-4 border-b-2 bg-gradient-to-r from-primary/10 to-accent/10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                  <MessageCircle className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <SheetTitle className="text-white text-left">AI Assistant</SheetTitle>
-                  <p className="text-xs text-white/80 text-left">Always here to help</p>
+                  <SheetTitle className="text-left flex items-center gap-2">
+                    AI Assistant
+                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                  </SheetTitle>
+                  <p className="text-xs text-muted-foreground text-left">Here to help you! 🚀</p>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsOpen(false)}
-                className="text-white hover:bg-white/20 transition-smooth"
+                className="hover:bg-muted transition-smooth"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -208,18 +223,18 @@ export function HelpChat({ userEmail }: { userEmail?: string }) {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${
+                  className={`flex gap-3 animate-fade-in ${
                     message.role === "user" ? "flex-row-reverse" : "flex-row"
                   }`}
                 >
                   {/* Avatar */}
-                  <Avatar className="w-8 h-8 flex-shrink-0">
+                  <Avatar className="w-8 h-8 flex-shrink-0 border-2 border-primary/20 shadow-md">
                     {message.role === "assistant" ? (
-                      <div className="w-full h-full rounded-full bg-gradient-primary flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-white" />
+                      <div className="w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-primary" />
                       </div>
                     ) : (
-                      <AvatarFallback className="bg-gradient-primary text-white text-xs">
+                      <AvatarFallback className="bg-gradient-primary text-white text-xs font-bold">
                         {userEmail?.substring(0, 2).toUpperCase() || "YO"}
                       </AvatarFallback>
                     )}
@@ -232,56 +247,58 @@ export function HelpChat({ userEmail }: { userEmail?: string }) {
                     }`}
                   >
                     <div
-                      className={`inline-block max-w-[85%] rounded-2xl px-4 py-2 ${
+                      className={`inline-block max-w-[85%] rounded-2xl px-4 py-3 shadow-md transition-smooth ${
                         message.role === "user"
-                          ? "bg-gradient-primary text-white"
-                          : "bg-muted text-foreground"
+                          ? "bg-gradient-to-br from-primary to-primary/90 text-white"
+                          : "bg-card border-2 border-border/50"
                       }`}
                     >
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 px-1">
+                    <p className="text-xs text-muted-foreground mt-1.5 px-1 opacity-70">
                       {formatTime(message.timestamp)}
                     </p>
                   </div>
                 </div>
               ))}
               {isLoading && (
-                <div className="flex gap-3">
-                  <Avatar className="w-8 h-8 flex-shrink-0">
-                    <div className="w-full h-full rounded-full bg-gradient-primary flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-white" />
+                <div className="flex gap-3 animate-fade-in">
+                  <Avatar className="w-8 h-8 flex-shrink-0 border-2 border-primary/20">
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-primary" />
                     </div>
                   </Avatar>
-                  <div className="bg-muted rounded-2xl px-4 py-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <div className="bg-card border-2 border-border/50 rounded-2xl px-4 py-3 shadow-md">
+                    <LoadingSpinner size="sm" />
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-4 border-t border-border bg-card">
+          <div className="p-4 border-t-2 bg-muted/30">
             <div className="flex gap-2">
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && !isLoading && handleSend()}
-                placeholder="Type your message..."
-                className="flex-1 bg-muted/50 border-muted"
+                placeholder="Type your message... ✨"
+                className="flex-1 bg-background border-2 focus:border-primary transition-smooth"
                 disabled={isLoading}
               />
               <Button
                 onClick={handleSend}
-                className="bg-gradient-primary text-white hover:opacity-90 transition-smooth"
+                className="bg-gradient-to-br from-primary to-accent text-white hover:scale-110 transition-smooth shadow-lg rounded-full"
                 size="icon"
                 disabled={isLoading || !inputValue.trim()}
               >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
+            <p className="text-xs text-muted-foreground mt-2 text-center flex items-center justify-center gap-1">
+              <Sparkles className="w-3 h-3" />
               Powered by TryInterview AI
             </p>
           </div>
