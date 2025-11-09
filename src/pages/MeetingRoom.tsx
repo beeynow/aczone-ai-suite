@@ -473,50 +473,66 @@ export default function MeetingRoom() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Video Area */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-muted/20 p-4 relative">
+        <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-muted/30 via-background to-muted/20 p-6 relative">
           {/* AI Assistant Indicator */}
           {isVoiceConnected && (
-            <div className="absolute top-4 right-4 z-10">
-              <Badge className={`flex items-center gap-2 ${isAiSpeaking ? 'bg-primary animate-pulse' : 'bg-muted'}`}>
-                <Sparkles className="w-3 h-3" />
+            <div className="absolute top-6 right-6 z-10">
+              <Badge className={`flex items-center gap-2 px-4 py-2 text-sm ${isAiSpeaking ? 'bg-primary shadow-lg shadow-primary/50 animate-pulse' : 'bg-muted border-border'}`}>
+                <Sparkles className="w-4 h-4" />
                 {isAiSpeaking ? 'AI Speaking...' : 'AI Listening'}
               </Badge>
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-6xl w-full">
+          {/* Video Grid */}
+          <div className={`grid gap-4 max-w-7xl w-full ${
+            participants.length === 1 ? 'grid-cols-1' :
+            participants.length === 2 ? 'grid-cols-2' :
+            participants.length <= 4 ? 'grid-cols-2' :
+            participants.length <= 6 ? 'md:grid-cols-3 grid-cols-2' :
+            'md:grid-cols-4 grid-cols-2'
+          }`}>
             {participants.map((participant) => (
-              <Card key={participant.id} className="aspect-video flex items-center justify-center relative">
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
-                  <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-primary/30 flex items-center justify-center mx-auto mb-2">
-                      <span className="text-2xl font-bold text-primary">
+              <Card key={participant.id} className="aspect-video flex items-center justify-center relative overflow-hidden border-2 border-border/50 shadow-xl hover:border-primary/50 transition-all">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 via-background/50 to-secondary/10 backdrop-blur-sm">
+                  <div className="text-center z-10">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/40 to-secondary/40 flex items-center justify-center mx-auto mb-3 ring-4 ring-background/50">
+                      <span className="text-3xl font-bold bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
                         {participant.display_name.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <p className="font-medium text-sm">{participant.display_name}</p>
+                    <p className="font-semibold text-base">{participant.display_name}</p>
                     {participant.is_host && (
-                      <Badge variant="secondary" className="text-xs mt-1">Host</Badge>
+                      <Badge className="text-xs mt-2 bg-primary/90">Host</Badge>
                     )}
                   </div>
                 </div>
-                {!isAudioOn && participant.user_id === currentUserId && (
-                  <div className="absolute bottom-2 right-2 p-1 rounded-full bg-red-500">
-                    <MicOff className="w-3 h-3 text-white" />
+                {!participant.is_muted && participant.user_id === currentUserId && (
+                  <div className="absolute bottom-3 left-3">
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-background/90 backdrop-blur-sm border">
+                      <Mic className="w-3 h-3 text-primary" />
+                    </div>
+                  </div>
+                )}
+                {participant.is_muted && (
+                  <div className="absolute bottom-3 left-3">
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-destructive/90 backdrop-blur-sm">
+                      <MicOff className="w-3 h-3 text-destructive-foreground" />
+                    </div>
                   </div>
                 )}
               </Card>
             ))}
             
             {/* AI Assistant Card */}
-            <Card className="aspect-video flex items-center justify-center relative border-2 border-primary/30">
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-accent/30">
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-2">
-                    <Sparkles className="w-8 h-8 text-white" />
+            <Card className="aspect-video flex items-center justify-center relative overflow-hidden border-2 border-primary/40 shadow-xl bg-gradient-to-br from-primary/5 via-background/50 to-accent/5">
+              <div className="absolute inset-0 flex items-center justify-center backdrop-blur-sm">
+                <div className="text-center z-10">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-3 ring-4 ring-background/50 shadow-lg shadow-primary/50">
+                    <Sparkles className="w-10 h-10 text-white" />
                   </div>
-                  <p className="font-medium text-sm">AI Assistant</p>
-                  <Badge variant="secondary" className="text-xs mt-1">Active</Badge>
+                  <p className="font-semibold text-base">AI Assistant</p>
+                  <Badge className="text-xs mt-2 bg-primary/90">Active</Badge>
                 </div>
               </div>
             </Card>
@@ -557,33 +573,81 @@ export default function MeetingRoom() {
       </div>
 
       {/* Controls */}
-      <div className="border-t bg-card p-4">
-        <div className="flex items-center justify-center gap-3 max-w-7xl mx-auto">
-          <Button
-            variant={isAudioOn ? "default" : "destructive"}
-            size="lg"
-            onClick={toggleMute}
-            className="rounded-full"
-            disabled={!isVoiceConnected}
-          >
-            {isAudioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-          </Button>
-          <Button
-            variant={isVideoOn ? "default" : "secondary"}
-            size="lg"
-            onClick={() => setIsVideoOn(!isVideoOn)}
-            className="rounded-full"
-          >
-            {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-          </Button>
-          <Button
-            variant={showChat ? "default" : "secondary"}
-            size="lg"
-            onClick={() => setShowChat(!showChat)}
-            className="rounded-full"
-          >
-            <MessageSquare className="w-5 h-5" />
-          </Button>
+      <div className="border-t bg-card/95 backdrop-blur-sm p-6 shadow-2xl">
+        <div className="flex items-center justify-between gap-6 max-w-7xl mx-auto">
+          {/* Left side - Meeting info */}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <Badge variant="outline" className="font-mono">
+              {formatTime(elapsedTime)}
+            </Badge>
+          </div>
+
+          {/* Center - Main controls */}
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              variant={isAudioOn ? "default" : "destructive"}
+              size="lg"
+              onClick={toggleMute}
+              className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform"
+              disabled={!isVoiceConnected}
+            >
+              {isAudioOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+            </Button>
+            
+            <Button
+              variant={isVideoOn ? "default" : "secondary"}
+              size="lg"
+              onClick={() => setIsVideoOn(!isVideoOn)}
+              className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform"
+            >
+              {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+            </Button>
+
+            {meeting.host_id === currentUserId ? (
+              <Button
+                variant="destructive"
+                size="lg"
+                onClick={endMeeting}
+                className="rounded-full h-14 px-8 shadow-lg hover:scale-105 transition-transform"
+              >
+                <Phone className="w-5 h-5 mr-2" />
+                End Meeting
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => { leaveMeeting(); navigate('/'); }}
+                className="rounded-full h-14 px-8 shadow-lg hover:scale-105 transition-transform hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <Phone className="w-5 h-5 mr-2" />
+                Leave
+              </Button>
+            )}
+          </div>
+
+          {/* Right side - Additional controls */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showChat ? "default" : "ghost"}
+              size="lg"
+              onClick={() => setShowChat(!showChat)}
+              className="rounded-lg h-12 px-4 shadow-sm hover:scale-105 transition-transform"
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span className="ml-2 hidden md:inline">Chat</span>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={copyMeetingLink}
+              className="rounded-lg h-12 px-4 shadow-sm hover:scale-105 transition-transform"
+            >
+              <Share2 className="w-5 h-5" />
+              <span className="ml-2 hidden md:inline">Share</span>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
