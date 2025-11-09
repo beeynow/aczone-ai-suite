@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Sparkles, Share2, FileText, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,6 +10,7 @@ import { VoiceMeetingClient } from "@/utils/VoiceMeeting";
 import { ZegoVideoClient } from "@/utils/ZegoVideoClient";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import MeetingMinutesModal from "@/components/MeetingMinutesModal";
+import MeetingChatModal from "@/components/MeetingChatModal";
 
 interface Participant {
   id: string;
@@ -38,8 +38,7 @@ export default function MeetingRoom() {
   const [meeting, setMeeting] = useState<any>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [isVideoOn, setIsVideoOn] = useState(false);
+  const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -592,8 +591,8 @@ export default function MeetingRoom() {
     }
   };
 
-  const sendChatMessage = async () => {
-    if (!chatInput.trim()) return;
+  const sendChatMessage = async (message: string) => {
+    if (!message.trim()) return;
 
     try {
       await (supabase as any)
@@ -601,12 +600,11 @@ export default function MeetingRoom() {
         .insert({
           meeting_id: id,
           user_id: currentUserId,
-          message: chatInput,
+          message: message,
         });
 
       // Append to transcript for AI minutes
-      setTranscript(prev => `${prev}\n[${currentUserName}]: ${chatInput}`);
-      setChatInput("");
+      setTranscript(prev => `${prev}\n[${currentUserName}]: ${message}`);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
@@ -749,13 +747,19 @@ export default function MeetingRoom() {
       <div className="flex-1 flex overflow-hidden">
         {/* Video Area */}
         <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-muted/30 via-background to-muted/20 p-6 relative">
-          {/* AI Assistant Indicator */}
+          {/* AI Assistant Small Indicator at Top */}
           {isVoiceConnected && (
-            <div className="absolute top-6 right-6 z-10">
-              <Badge className={`flex items-center gap-2 px-4 py-2 text-sm ${isAiSpeaking ? 'bg-primary shadow-lg shadow-primary/50 animate-pulse' : 'bg-muted border-border'}`}>
-                <Sparkles className="w-4 h-4" />
-                {isAiSpeaking ? 'AI Speaking...' : 'AI Listening'}
-              </Badge>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+              <Card className={`flex items-center gap-2 px-3 py-1.5 ${
+                isAiSpeaking 
+                  ? 'bg-gradient-to-r from-primary/90 to-purple-500/90 shadow-lg shadow-primary/50 animate-pulse border-primary' 
+                  : 'bg-card/90 backdrop-blur-sm border-border/50'
+              }`}>
+                <Sparkles className={`w-3.5 h-3.5 ${isAiSpeaking ? 'text-primary-foreground' : 'text-primary'}`} />
+                <span className={`text-xs font-medium ${isAiSpeaking ? 'text-primary-foreground' : 'text-foreground'}`}>
+                  {isAiSpeaking ? 'AI Speaking' : 'AI Listening'}
+                </span>
+              </Card>
             </div>
           )}
 
@@ -816,11 +820,17 @@ export default function MeetingRoom() {
             {/* Participant Thumbnails */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {/* Local user */}
-              <Card className={`relative flex-shrink-0 w-32 h-24 overflow-hidden ${
-                currentUserId && speakingUsers.has(currentUserId) 
-                  ? 'ring-2 ring-primary' 
-                  : 'ring-1 ring-border/30'
-              }`}>
+              <Card 
+                className={`relative flex-shrink-0 w-32 h-24 overflow-hidden transition-all duration-300 ${
+                  currentUserId && speakingUsers.has(currentUserId) 
+                    ? 'ring-4 ring-offset-2 ring-offset-background animate-pulse' 
+                    : 'ring-1 ring-border/30'
+                }`}
+                style={currentUserId && speakingUsers.has(currentUserId) ? {
+                  boxShadow: '0 0 20px rgba(var(--primary), 0.5)',
+                  borderImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) 1',
+                } : {}}
+              >
                 {localVideoStream && isVideoOn ? (
                   <video
                     autoPlay
@@ -847,9 +857,15 @@ export default function MeetingRoom() {
                 return (
                   <Card 
                     key={participant.id}
-                    className={`relative flex-shrink-0 w-32 h-24 overflow-hidden ${
-                      isSpeaking ? 'ring-2 ring-primary' : 'ring-1 ring-border/30'
+                    className={`relative flex-shrink-0 w-32 h-24 overflow-hidden transition-all duration-300 ${
+                      isSpeaking 
+                        ? 'ring-4 ring-offset-2 ring-offset-background animate-pulse scale-105' 
+                        : 'ring-1 ring-border/30'
                     }`}
+                    style={isSpeaking ? {
+                      boxShadow: '0 0 20px rgba(var(--primary), 0.5)',
+                      borderImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) 1',
+                    } : {}}
                   >
                     {stream && participant.is_video_on ? (
                       <video
@@ -874,56 +890,12 @@ export default function MeetingRoom() {
                       </div>
                     )}
                   </Card>
-                );
-              })}
-
-              {/* AI Assistant thumbnail */}
-              <Card className={`relative flex-shrink-0 w-32 h-24 overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20 ${
-                isAiSpeaking ? 'ring-2 ring-primary' : 'ring-1 ring-primary/30'
-              }`}>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles className={`w-8 h-8 text-primary ${isAiSpeaking ? 'animate-pulse' : ''}`} />
-                </div>
-                <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded">
-                  AI {isAiSpeaking && '🔊'}
-                </div>
-              </Card>
+                  );
+                })}
             </div>
           </div>
 
         </div>
-
-        {/* Sidebar - Chat or Participants */}
-        {showChat && (
-          <div className="w-80 border-l bg-card flex flex-col">
-            <div className="p-4 border-b">
-              <h3 className="font-semibold">Chat</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium">{msg.display_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(msg.created_at).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-sm bg-muted p-2 rounded">{msg.message}</p>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="p-4 border-t flex gap-2">
-              <Input
-                placeholder="Type a message..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
-              />
-              <Button onClick={sendChatMessage}>Send</Button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Controls */}
@@ -1027,6 +999,15 @@ export default function MeetingRoom() {
           </div>
         </div>
       </div>
+
+      {/* Meeting Chat Modal */}
+      <MeetingChatModal
+        open={showChat}
+        onOpenChange={setShowChat}
+        messages={chatMessages}
+        currentUserId={currentUserId}
+        onSendMessage={sendChatMessage}
+      />
 
       {/* Meeting Minutes Modal */}
       <MeetingMinutesModal
