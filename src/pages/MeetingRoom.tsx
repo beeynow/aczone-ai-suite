@@ -149,6 +149,13 @@ export default function MeetingRoom() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Fetch profile for display name
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
       // Avoid duplicate rows if already joined
       const { data: existing } = await (supabase as any)
         .from('meeting_participants')
