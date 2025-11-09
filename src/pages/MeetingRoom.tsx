@@ -62,6 +62,7 @@ export default function MeetingRoom() {
       joinMeeting();
       subscribeToParticipants();
       subscribeToChat();
+      subscribeToMeetingEnd();
       initializeVoice();
     }
 
@@ -124,7 +125,7 @@ export default function MeetingRoom() {
   };
 
   const getMeetingLink = () => {
-    return `https://tryinterview.site/meeting/${id}`;
+    return `https://tryinterview.site/join-meeting/${meeting?.room_id || ''}`;
   };
 
   const fetchMeeting = async () => {
@@ -302,6 +303,33 @@ export default function MeetingRoom() {
     };
   };
 
+  const subscribeToMeetingEnd = () => {
+    const channel = supabase
+      .channel(`meeting_end_${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'meeting_sessions',
+          filter: `id=eq.${id}`,
+        },
+        (payload: any) => {
+          if (payload.new.end_time && payload.new.host_id !== currentUserId) {
+            toast.info("The host has ended the meeting");
+            setTimeout(() => {
+              navigate('/');
+            }, 2000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
   const fetchParticipants = async () => {
     try {
       const { data, error } = await (supabase as any)
@@ -466,7 +494,7 @@ export default function MeetingRoom() {
   };
 
   const copyMeetingLink = async () => {
-    const link = `${window.location.origin}/meeting/${id}`;
+    const link = `https://tryinterview.site/join-meeting/${meeting?.room_id || ''}`;
     try {
       await navigator.clipboard.writeText(link);
       toast.success('Meeting link copied!');
@@ -539,13 +567,13 @@ export default function MeetingRoom() {
           )}
 
           {/* Video Grid - Compact layout like Zoom/Teams */}
-          <div className={`grid gap-3 max-w-7xl w-full ${
-            participants.length === 1 ? 'grid-cols-1 max-w-2xl' :
-            participants.length === 2 ? 'grid-cols-2 max-w-3xl' :
-            participants.length <= 4 ? 'grid-cols-2 max-w-4xl' :
-            participants.length <= 6 ? 'md:grid-cols-3 grid-cols-2' :
-            participants.length <= 9 ? 'md:grid-cols-3 grid-cols-2' :
-            'md:grid-cols-4 grid-cols-3'
+          <div className={`grid gap-2 max-w-7xl w-full ${
+            participants.length === 1 ? 'grid-cols-1 max-w-xl' :
+            participants.length === 2 ? 'grid-cols-2 max-w-2xl' :
+            participants.length <= 4 ? 'grid-cols-2 max-w-3xl' :
+            participants.length <= 6 ? 'md:grid-cols-3 grid-cols-2 max-w-4xl' :
+            participants.length <= 9 ? 'md:grid-cols-3 grid-cols-2 max-w-5xl' :
+            'md:grid-cols-4 grid-cols-3 max-w-6xl'
           }`}>
             {participants.map((participant) => {
               const isSpeaking = speakingUsers.has(participant.user_id);
@@ -553,10 +581,10 @@ export default function MeetingRoom() {
                 <Card 
                   key={participant.id} 
                   className={`relative overflow-hidden transition-all duration-200 ${
-                    participants.length === 1 ? 'aspect-video' : 'aspect-[4/3]'
+                    participants.length === 1 ? 'aspect-video' : 'aspect-[3/2]'
                   } ${
                     isSpeaking 
-                      ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-105' 
+                      ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
                       : 'ring-2 ring-border/30 hover:ring-border/60'
                   }`}
                 >
@@ -566,29 +594,29 @@ export default function MeetingRoom() {
                         <img 
                           src={participant.avatar_url} 
                           alt={participant.display_name}
-                          className={`rounded-full mx-auto mb-2 object-cover ${
-                            participants.length === 1 ? 'w-32 h-32' : 'w-16 h-16'
+                          className={`rounded-full mx-auto mb-1 object-cover ${
+                            participants.length === 1 ? 'w-24 h-24' : 'w-12 h-12'
                           } ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}
                         />
                       ) : (
-                        <div className={`rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center mx-auto mb-2 ${
-                          participants.length === 1 ? 'w-32 h-32' : 'w-16 h-16'
+                        <div className={`rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center mx-auto mb-1 ${
+                          participants.length === 1 ? 'w-24 h-24' : 'w-12 h-12'
                         } ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}>
                           <span className={`font-bold text-foreground ${
-                            participants.length === 1 ? 'text-4xl' : 'text-2xl'
+                            participants.length === 1 ? 'text-3xl' : 'text-lg'
                           }`}>
                             {participant.display_name.charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
-                      <p className={`font-medium ${participants.length === 1 ? 'text-lg' : 'text-sm'}`}>
+                      <p className={`font-medium ${participants.length === 1 ? 'text-base' : 'text-xs'}`}>
                         {participant.display_name}
                         {participant.user_id === currentUserId && (
                           <span className="text-xs text-muted-foreground ml-1">(You)</span>
                         )}
                       </p>
                       {participant.is_host && (
-                        <Badge className="text-xs mt-1 bg-primary/80">Host</Badge>
+                        <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">Host</Badge>
                       )}
                     </div>
                   </div>
@@ -613,23 +641,23 @@ export default function MeetingRoom() {
             
             {/* AI Assistant Card */}
             <Card className={`relative overflow-hidden transition-all duration-200 ${
-              participants.length === 1 ? 'aspect-video' : 'aspect-[4/3]'
+              participants.length === 1 ? 'aspect-video' : 'aspect-[3/2]'
             } ${
               isAiSpeaking 
-                ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-105' 
+                ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
                 : 'ring-2 ring-primary/30'
             } bg-gradient-to-br from-primary/10 via-background/80 to-accent/10`}>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className={`rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-2 ${
-                    participants.length === 1 ? 'w-32 h-32' : 'w-16 h-16'
+                  <div className={`rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-1 ${
+                    participants.length === 1 ? 'w-24 h-24' : 'w-12 h-12'
                   } ${isAiSpeaking ? 'ring-4 ring-primary animate-pulse shadow-lg shadow-primary/50' : ''}`}>
-                    <Sparkles className={`text-white ${participants.length === 1 ? 'w-16 h-16' : 'w-8 h-8'}`} />
+                    <Sparkles className={`text-white ${participants.length === 1 ? 'w-12 h-12' : 'w-6 h-6'}`} />
                   </div>
-                  <p className={`font-medium ${participants.length === 1 ? 'text-lg' : 'text-sm'}`}>
+                  <p className={`font-medium ${participants.length === 1 ? 'text-base' : 'text-xs'}`}>
                     AI Assistant
                   </p>
-                  <Badge className="text-xs mt-1 bg-primary/80">
+                  <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">
                     {isAiSpeaking ? 'Speaking' : 'Listening'}
                   </Badge>
                 </div>

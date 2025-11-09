@@ -10,6 +10,7 @@ import InterviewRoom from "./pages/InterviewRoom";
 import CreateMeeting from "./pages/CreateMeeting";
 import MeetingRoom from "./pages/MeetingRoom";
 import JoinInterview from "./pages/JoinInterview";
+import JoinMeetingByCode from "./pages/JoinMeetingByCode";
 import Settings from "./pages/Settings";
 import Certificates from "./pages/Certificates";
 import QuestionBank from "./pages/QuestionBank";
@@ -32,6 +33,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/join-interview" element={<JoinInterview />} />
+          <Route path="/join-meeting/:code" element={<JoinMeetingByCode />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="create-interview" element={<CreateInterview />} />
