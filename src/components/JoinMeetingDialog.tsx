@@ -36,36 +36,18 @@ export default function JoinMeetingDialog() {
         return;
       }
 
-      // Check if meeting exists and is not ended (search by room_id OR id)
-      const { data: meetings, error: meetingError } = await supabase
-        .from("meeting_sessions")
-        .select("*")
-        .or(`room_id.eq.${roomId.trim().toUpperCase()},id.eq.${roomId.trim()}`);
+      // Join via secure backend function
+      const { data, error: fnError } = await supabase.functions.invoke('join-meeting-by-code', {
+        body: { code: roomId.trim().toUpperCase() }
+      });
 
-      if (meetingError || !meetings || meetings.length === 0) {
-        toast.error("Meeting not found. Please check the meeting code.");
+      if (fnError || !data?.meetingId) {
+        toast.error("Meeting not found or has ended.");
         setLoading(false);
         return;
       }
 
-      const meeting = meetings[0];
-
-      // Check if meeting has ended
-      if (meeting.end_time) {
-        toast.error("This meeting has ended");
-        setLoading(false);
-        return;
-      }
-
-      // Check if meeting is locked
-      if (meeting.is_locked) {
-        toast.error("This meeting is locked");
-        setLoading(false);
-        return;
-      }
-
-      // Join the meeting
-      navigate(`/meeting/${meeting.id}`);
+      navigate(`/meeting/${data.meetingId}`);
       setOpen(false);
     } catch (error) {
       console.error("Error joining meeting:", error);

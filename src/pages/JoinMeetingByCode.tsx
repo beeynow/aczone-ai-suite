@@ -24,32 +24,20 @@ export default function JoinMeetingByCode() {
           return;
         }
 
-        // Find meeting by room_id
-        const { data: meetings, error: meetingError } = await supabase
-          .from("meeting_sessions")
-          .select("*")
-          .eq("room_id", code.toUpperCase())
-          .is("end_time", null);
+        // Server-side join by code to bypass RLS safely
+        const { data, error: fnError } = await supabase.functions.invoke('join-meeting-by-code', {
+          body: { code: code.toUpperCase() }
+        });
 
-        if (meetingError || !meetings || meetings.length === 0) {
+        if (fnError || !data?.meetingId) {
           setError("Meeting not found or has ended");
           toast.error("Meeting not found. Please check the code.");
           setTimeout(() => navigate('/'), 2000);
           return;
         }
 
-        const meeting = meetings[0];
-
-        // Check if meeting is locked
-        if (meeting.is_locked) {
-          setError("This meeting is locked");
-          toast.error("This meeting is locked");
-          setTimeout(() => navigate('/'), 2000);
-          return;
-        }
-
-        // Redirect to meeting room
-        navigate(`/meeting/${meeting.id}`);
+        // Redirect directly to meeting room
+        navigate(`/meeting/${data.meetingId}`);
       } catch (error) {
         console.error("Error joining meeting:", error);
         setError("Failed to join meeting");

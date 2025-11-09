@@ -149,24 +149,31 @@ export default function MeetingRoom() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('user_id', user.id)
-        .single();
-
-      const { error: insertError } = await (supabase as any)
+      // Avoid duplicate rows if already joined
+      const { data: existing } = await (supabase as any)
         .from('meeting_participants')
-        .insert({
-          meeting_id: id,
-          user_id: user.id,
-          display_name: profile?.full_name || profile?.email || 'Anonymous',
-          is_host: meeting?.host_id === user.id,
-        });
+        .select('id,left_at')
+        .eq('meeting_id', id)
+        .eq('user_id', user.id)
+        .limit(1);
 
-      if (insertError) {
-        console.error("Error inserting participant:", insertError);
-        return;
+      if (!existing || existing.length === 0) {
+        const { error: insertError } = await (supabase as any)
+          .from('meeting_participants')
+          .insert({
+            meeting_id: id,
+            user_id: user.id,
+            display_name: profile?.full_name || profile?.email || 'Anonymous',
+            is_host: meeting?.host_id === user.id,
+          });
+        if (insertError) {
+          console.error("Error inserting participant:", insertError);
+        }
+      } else if (existing[0].left_at) {
+        await (supabase as any)
+          .from('meeting_participants')
+          .update({ left_at: null })
+          .eq('id', existing[0].id);
       }
 
       // Create notification for meeting join
@@ -427,7 +434,7 @@ export default function MeetingRoom() {
         return;
       }
 
-      // Update meeting end time
+      // Update meeting end time immediately so all clients get realtime update
       await (supabase as any)
         .from('meeting_sessions')
         .update({ 
@@ -436,51 +443,50 @@ export default function MeetingRoom() {
         })
         .eq('id', id);
 
-      // Generate AI meeting minutes instantly
+      // Generate AI minutes and show instantly
       const participantNames = participants.map(p => p.display_name);
-      
-      // Call edge function in background, don't wait
-      supabase.functions.invoke('generate-meeting-minutes', {
-        body: { 
+      const { data: minutesData, error: genErr } = await supabase.functions.invoke('generate-meeting-minutes', {
+        body: {
           meetingId: id,
           transcript: transcript || 'Meeting discussion content',
           participants: participantNames
         }
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('Error generating minutes:', error);
-          return;
-        }
-
-        // Save meeting minutes
-        return (supabase as any)
-          .from('meeting_minutes')
-          .insert({
-            meeting_id: id,
-            summary: data.summary || 'Meeting summary',
-            full_transcript: transcript,
-            action_items: data.actionItems || [],
-            key_topics: data.keyPoints || [],
-            participant_ratings: data.participantRatings || {},
-          })
-          .select()
-          .single();
-      }).then(({ data: minutesData }) => {
-        if (minutesData) {
-          setMeetingMinutes(minutesData);
-        }
       });
+      if (genErr) {
+        console.error('Error generating minutes:', genErr);
+      }
 
-      // Show modal immediately with placeholder content
+      // Update modal immediately with generated content
+      const generated = minutesData || {
+        summary: 'Meeting summary',
+        actionItems: [],
+        keyPoints: [],
+        participantRatings: {},
+      };
       setMeetingMinutes({
-        summary: 'Generating meeting summary...',
-        action_items: [],
-        key_topics: [],
-        participant_ratings: {},
+        summary: generated.summary,
+        action_items: generated.actionItems || [],
+        key_topics: generated.keyPoints || [],
+        participant_ratings: generated.participantRatings || {},
         full_transcript: transcript
       });
-      toast.success('Meeting ended successfully!');
       setShowMinutesModal(true);
+      toast.success('Meeting ended successfully!');
+
+      // Persist minutes in background (best-effort)
+      (supabase as any)
+        .from('meeting_minutes')
+        .insert({
+          meeting_id: id,
+          summary: generated.summary,
+          full_transcript: transcript,
+          action_items: generated.actionItems || [],
+          key_topics: generated.keyPoints || [],
+          participant_ratings: generated.participantRatings || {},
+        })
+        .select()
+        .single()
+        .then(({ data }) => data && setMeetingMinutes(data));
     } catch (error) {
       console.error('Error ending meeting:', error);
       toast.error('Failed to end meeting');
@@ -566,104 +572,95 @@ export default function MeetingRoom() {
             </div>
           )}
 
-          {/* Video Grid - Compact layout like Zoom/Teams */}
-          <div className={`grid gap-2 max-w-7xl w-full ${
-            participants.length === 1 ? 'grid-cols-1 max-w-xl' :
-            participants.length === 2 ? 'grid-cols-2 max-w-2xl' :
-            participants.length <= 4 ? 'grid-cols-2 max-w-3xl' :
-            participants.length <= 6 ? 'md:grid-cols-3 grid-cols-2 max-w-4xl' :
-            participants.length <= 9 ? 'md:grid-cols-3 grid-cols-2 max-w-5xl' :
-            'md:grid-cols-4 grid-cols-3 max-w-6xl'
-          }`}>
-            {participants.map((participant) => {
-              const isSpeaking = speakingUsers.has(participant.user_id);
-              return (
-                <Card 
-                  key={participant.id} 
-                  className={`relative overflow-hidden transition-all duration-200 ${
-                    participants.length === 1 ? 'aspect-video' : 'aspect-[3/2]'
-                  } ${
-                    isSpeaking 
-                      ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
-                      : 'ring-2 ring-border/30 hover:ring-border/60'
-                  }`}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted/80 to-background/80">
-                    <div className="text-center">
-                      {participant.avatar_url ? (
-                        <img 
-                          src={participant.avatar_url} 
-                          alt={participant.display_name}
-                          className={`rounded-full mx-auto mb-1 object-cover ${
-                            participants.length === 1 ? 'w-24 h-24' : 'w-12 h-12'
-                          } ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}
-                        />
-                      ) : (
-                        <div className={`rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center mx-auto mb-1 ${
-                          participants.length === 1 ? 'w-24 h-24' : 'w-12 h-12'
-                        } ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}>
-                          <span className={`font-bold text-foreground ${
-                            participants.length === 1 ? 'text-3xl' : 'text-lg'
-                          }`}>
-                            {participant.display_name.charAt(0).toUpperCase()}
-                          </span>
+          {/* Video Grid - Compact layout like Zoom/Teams with a large active speaker tile */}
+          {(() => {
+            const active = participants.find(p => speakingUsers.has(p.user_id)) || participants[0];
+            const ordered = active 
+              ? [active, ...participants.filter(p => p.id !== active.id)]
+              : participants;
+            return (
+              <div className="grid gap-2 max-w-7xl w-full grid-cols-2 md:grid-cols-4 auto-rows-[120px] md:auto-rows-[140px]">
+                {ordered.map((participant, idx) => {
+                  const isSpeaking = speakingUsers.has(participant.user_id);
+                  const tileClasses = idx === 0
+                    ? 'md:col-span-2 md:row-span-2 aspect-video'
+                    : 'aspect-[4/3]';
+                  return (
+                    <Card 
+                      key={participant.id} 
+                      className={`relative overflow-hidden transition-all duration-200 ${tileClasses} ${
+                        isSpeaking 
+                          ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
+                          : 'ring-2 ring-border/30 hover:ring-border/60'
+                      }`}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted/80 to-background/80">
+                        <div className="text-center">
+                          {participant.avatar_url ? (
+                            <img 
+                              src={participant.avatar_url} 
+                              alt={participant.display_name}
+                              className={`rounded-full mx-auto mb-1 object-cover ${idx === 0 ? 'w-24 h-24' : 'w-10 h-10'} ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}
+                            />
+                          ) : (
+                            <div className={`rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center mx-auto mb-1 ${idx === 0 ? 'w-24 h-24' : 'w-10 h-10'} ${isSpeaking ? 'ring-4 ring-primary animate-pulse' : ''}`}>
+                              <span className={`font-bold text-foreground ${idx === 0 ? 'text-3xl' : 'text-base'}`}>
+                                {participant.display_name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <p className={`font-medium ${idx === 0 ? 'text-base' : 'text-xs'}`}>
+                            {participant.display_name}
+                            {participant.user_id === currentUserId && (
+                              <span className="text-xs text-muted-foreground ml-1">(You)</span>
+                            )}
+                          </p>
+                          {participant.is_host && (
+                            <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">Host</Badge>
+                          )}
                         </div>
-                      )}
-                      <p className={`font-medium ${participants.length === 1 ? 'text-base' : 'text-xs'}`}>
-                        {participant.display_name}
-                        {participant.user_id === currentUserId && (
-                          <span className="text-xs text-muted-foreground ml-1">(You)</span>
-                        )}
+                      </div>
+                      <div className="absolute bottom-2 left-2">
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full backdrop-blur-sm text-xs ${
+                          participant.is_muted 
+                            ? 'bg-destructive/90 text-destructive-foreground' 
+                            : 'bg-background/90 border border-primary/50'
+                        }`}>
+                          {participant.is_muted ? (
+                            <MicOff className="w-3 h-3" />
+                          ) : (
+                            <Mic className={`w-3 h-3 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+
+                {/* AI Assistant Card */}
+                <Card className={`relative overflow-hidden transition-all duration-200 aspect-[4/3] ${
+                  isAiSpeaking 
+                    ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
+                    : 'ring-2 ring-primary/30'
+                } bg-gradient-to-br from-primary/10 via-background/80 to-accent/10`}>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className={`rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-1 w-10 h-10 ${isAiSpeaking ? 'ring-4 ring-primary animate-pulse shadow-lg shadow-primary/50' : ''}`}>
+                        <Sparkles className={`text-white w-5 h-5`} />
+                      </div>
+                      <p className={`font-medium text-xs`}>
+                        AI Assistant
                       </p>
-                      {participant.is_host && (
-                        <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">Host</Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Mic status indicator */}
-                  <div className="absolute bottom-2 left-2">
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full backdrop-blur-sm text-xs ${
-                      participant.is_muted 
-                        ? 'bg-destructive/90 text-destructive-foreground' 
-                        : 'bg-background/90 border border-primary/50'
-                    }`}>
-                      {participant.is_muted ? (
-                        <MicOff className="w-3 h-3" />
-                      ) : (
-                        <Mic className={`w-3 h-3 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-                      )}
+                      <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">
+                        {isAiSpeaking ? 'Speaking' : 'Listening'}
+                      </Badge>
                     </div>
                   </div>
                 </Card>
-              );
-            })}
-            
-            {/* AI Assistant Card */}
-            <Card className={`relative overflow-hidden transition-all duration-200 ${
-              participants.length === 1 ? 'aspect-video' : 'aspect-[3/2]'
-            } ${
-              isAiSpeaking 
-                ? 'ring-4 ring-primary shadow-2xl shadow-primary/50 scale-[1.02]' 
-                : 'ring-2 ring-primary/30'
-            } bg-gradient-to-br from-primary/10 via-background/80 to-accent/10`}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className={`rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-1 ${
-                    participants.length === 1 ? 'w-24 h-24' : 'w-12 h-12'
-                  } ${isAiSpeaking ? 'ring-4 ring-primary animate-pulse shadow-lg shadow-primary/50' : ''}`}>
-                    <Sparkles className={`text-white ${participants.length === 1 ? 'w-12 h-12' : 'w-6 h-6'}`} />
-                  </div>
-                  <p className={`font-medium ${participants.length === 1 ? 'text-base' : 'text-xs'}`}>
-                    AI Assistant
-                  </p>
-                  <Badge className="text-[10px] mt-0.5 bg-primary/80 px-1.5 py-0">
-                    {isAiSpeaking ? 'Speaking' : 'Listening'}
-                  </Badge>
-                </div>
               </div>
-            </Card>
-          </div>
+            );
+          })()}
+
         </div>
 
         {/* Sidebar - Chat or Participants */}
