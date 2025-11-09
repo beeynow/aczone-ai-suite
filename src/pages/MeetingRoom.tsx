@@ -413,17 +413,25 @@ export default function MeetingRoom() {
     try {
       const { data, error } = await (supabase as any)
         .from('meeting_participants')
-        .select('*, profiles!inner(avatar_url, full_name)')
+        .select('*')
         .eq('meeting_id', id)
         .is('left_at', null);
 
       if (error) throw error;
       
+      // Fetch profiles separately for avatar URLs
+      const userIds = (data || []).map((p: any) => p.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, avatar_url')
+        .in('user_id', userIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
       // Enrich participants with profile data
       const enrichedParticipants = (data || []).map((p: any) => ({
         ...p,
-        avatar_url: p.profiles?.avatar_url,
-        display_name: p.display_name || p.profiles?.full_name || 'Anonymous'
+        avatar_url: profileMap.get(p.user_id)?.avatar_url || null
       }));
       
       setParticipants(enrichedParticipants);
@@ -460,15 +468,23 @@ export default function MeetingRoom() {
     try {
       const { data, error } = await (supabase as any)
         .from('meeting_chat')
-        .select('*, profiles(full_name, email)')
+        .select('*')
         .eq('meeting_id', id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
       
+      // Get display names from participants
+      const { data: participantData } = await (supabase as any)
+        .from('meeting_participants')
+        .select('user_id, display_name')
+        .eq('meeting_id', id);
+      
+      const participantMap = new Map(participantData?.map((p: any) => [p.user_id, p.display_name]) || []);
+      
       const messagesWithNames = (data || []).map((msg: any) => ({
         ...msg,
-        display_name: msg.profiles?.full_name || msg.profiles?.email || 'Anonymous'
+        display_name: participantMap.get(msg.user_id) || 'Anonymous'
       }));
       
       setChatMessages(messagesWithNames);

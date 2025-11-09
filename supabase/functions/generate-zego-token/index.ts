@@ -1,10 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHmac } from "https://deno.land/std@0.160.0/node/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper function to convert hex string to Uint8Array
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+// Helper function to convert Uint8Array to hex string
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -41,9 +56,21 @@ serve(async (req) => {
     const payloadStr = JSON.stringify(payload);
     const payloadBase64 = btoa(payloadStr);
     
-    const hmac = createHmac("sha256", serverSecret);
-    hmac.update(payloadBase64);
-    const signature = hmac.digest("hex");
+    // Use Web Crypto API instead of Node crypto
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(serverSecret);
+    const messageData = encoder.encode(payloadBase64);
+    
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+    const signature = bytesToHex(new Uint8Array(signatureBuffer));
 
     const token = `04${payloadBase64}.${signature}`;
 
