@@ -27,16 +27,16 @@ export default function Referrals() {
       if (!user) return;
 
       // Get or create referral code
-      let { data: existingReferral } = await supabase
+      let { data: existingReferral } = await (supabase as any)
         .from('referral_system')
         .select('referral_code')
         .eq('referrer_id', user.id)
-        .maybeSingle() as any;
+        .maybeSingle();
 
       if (!existingReferral) {
         // Generate unique referral code
         const code = generateReferralCode(user.email!);
-        const { data, error }: { data: any; error: any } = await supabase
+        const { data, error } = await (supabase as any)
           .from('referral_system')
           .insert({
             referrer_id: user.id,
@@ -48,18 +48,18 @@ export default function Referrals() {
         if (error) throw error;
         setReferralCode(data.referral_code);
       } else {
-        setReferralCode((existingReferral as any).referral_code);
+        setReferralCode(existingReferral.referral_code);
       }
 
       // Get referral stats
-      const { data: referralData, error: referralError } = await supabase
+      const { data: referralData, error: referralError } = await (supabase as any)
         .from('referral_system')
         .select('*')
-        .eq('referrer_id', user.id) as any;
+        .eq('referrer_id', user.id);
 
       if (referralError) throw referralError;
 
-      const referralArray = (referralData as any) || [];
+      const referralArray = referralData || [];
       const successful = referralArray.filter((r: any) => r.signup_completed) || [];
       const totalPoints = successful.reduce((sum: number, r: any) => sum + (r.reward_points || 0), 0);
 

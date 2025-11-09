@@ -86,11 +86,11 @@ export default function MeetingRoom() {
 
   const fetchMeeting = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('meeting_sessions')
         .select('*')
         .eq('id', id)
-        .single() as any;
+        .single();
 
       if (error) throw error;
       setMeeting(data);
@@ -111,14 +111,14 @@ export default function MeetingRoom() {
         .eq('user_id', user.id)
         .single();
 
-      await supabase
+      await (supabase as any)
         .from('meeting_participants')
         .insert({
           meeting_id: id,
           user_id: user.id,
           display_name: profile?.full_name || profile?.email || 'Anonymous',
           is_host: meeting?.host_id === user.id,
-        } as any);
+        });
 
       toast.success('Joined meeting');
     } catch (error) {
@@ -131,9 +131,9 @@ export default function MeetingRoom() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await supabase
+      await (supabase as any)
         .from('meeting_participants')
-        .update({ left_at: new Date().toISOString() } as any)
+        .update({ left_at: new Date().toISOString() })
         .eq('meeting_id', id)
         .eq('user_id', user.id);
     } catch (error) {
@@ -167,14 +167,14 @@ export default function MeetingRoom() {
 
   const fetchParticipants = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('meeting_participants')
         .select('*')
         .eq('meeting_id', id)
-        .is('left_at', null) as any;
+        .is('left_at', null);
 
       if (error) throw error;
-      setParticipants((data as any) || []);
+      setParticipants(data || []);
     } catch (error) {
       console.error('Error fetching participants:', error);
     }
@@ -206,20 +206,20 @@ export default function MeetingRoom() {
 
   const fetchChat = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('meeting_chat')
         .select('*, profiles(full_name, email)')
         .eq('meeting_id', id)
-        .order('created_at', { ascending: true }) as any;
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       
-      const messagesWithNames = ((data as any) || []).map((msg: any) => ({
+      const messagesWithNames = (data || []).map((msg: any) => ({
         ...msg,
         display_name: msg.profiles?.full_name || msg.profiles?.email || 'Anonymous'
       }));
       
-      setChatMessages(messagesWithNames as any);
+      setChatMessages(messagesWithNames);
     } catch (error) {
       console.error('Error fetching chat:', error);
     }
@@ -229,13 +229,13 @@ export default function MeetingRoom() {
     if (!chatInput.trim()) return;
 
     try {
-      await supabase
+      await (supabase as any)
         .from('meeting_chat')
         .insert({
           meeting_id: id,
           user_id: currentUserId,
           message: chatInput,
-        } as any);
+        });
 
       // Append to transcript for AI minutes
       setTranscript(prev => `${prev}\n[${currentUserName}]: ${chatInput}`);
@@ -255,12 +255,12 @@ export default function MeetingRoom() {
       }
 
       // Update meeting end time
-      await supabase
+      await (supabase as any)
         .from('meeting_sessions')
         .update({ 
           end_time: new Date().toISOString(),
           duration_minutes: Math.floor(elapsedTime / 60)
-        } as any)
+        })
         .eq('id', id);
 
       // Generate AI meeting minutes
@@ -279,7 +279,7 @@ export default function MeetingRoom() {
       if (error) throw error;
 
       // Save meeting minutes
-      await supabase
+      await (supabase as any)
         .from('meeting_minutes')
         .insert({
           meeting_id: id,
@@ -288,7 +288,7 @@ export default function MeetingRoom() {
           action_items: data.actionItems || [],
           key_topics: data.keyPoints || [],
           participant_ratings: data.participantRatings || {},
-        } as any);
+        });
 
       toast.success('Meeting ended and minutes generated!');
       navigate('/');

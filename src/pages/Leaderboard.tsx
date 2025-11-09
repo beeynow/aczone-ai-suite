@@ -36,11 +36,11 @@ export default function Leaderboard() {
 
   const fetchUserStats = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('user_points')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle() as any;
+        .maybeSingle();
 
       if (error) throw error;
       setUserStats(data);
@@ -52,17 +52,17 @@ export default function Leaderboard() {
   const fetchLeaderboard = async (category: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('leaderboard_entries')
         .select('*')
         .eq('category', category)
         .order('points', { ascending: false })
-        .limit(100) as any;
+        .limit(100);
 
       if (error) throw error;
       
       // Add ranks
-      const rankedData = ((data as any) || []).map((entry: any, index: number) => ({
+      const rankedData = (data || []).map((entry: any, index: number) => ({
         ...entry,
         rank: index + 1
       }));

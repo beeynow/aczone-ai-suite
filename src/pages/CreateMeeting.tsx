@@ -37,7 +37,7 @@ export default function CreateMeeting() {
 
       const roomId = `meeting_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('meeting_sessions')
         .insert([
           {
@@ -46,7 +46,7 @@ export default function CreateMeeting() {
             room_id: roomId,
             host_id: user.id,
             max_participants: formData.max_participants,
-          } as any,
+          },
         ])
         .select()
         .single();
