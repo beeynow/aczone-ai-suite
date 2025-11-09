@@ -159,7 +159,16 @@ export default function MeetingRoom() {
 
       if (insertError) {
         console.error("Error inserting participant:", insertError);
+        return;
       }
+
+      // Create notification for meeting join
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Joined Meeting',
+        message: `You joined "${meeting?.title}"`,
+        type: 'meeting'
+      });
 
       // Subscribe to participant join/leave events
       const channel = supabase
@@ -172,9 +181,17 @@ export default function MeetingRoom() {
             table: 'meeting_participants',
             filter: `meeting_id=eq.${id}`,
           },
-          (payload) => {
+          async (payload) => {
             if (payload.new.user_id !== user.id) {
               toast.success(`${payload.new.display_name} joined the meeting`);
+              
+              // Create notification for other participants
+              await supabase.from('notifications').insert({
+                user_id: user.id,
+                title: 'Participant Joined',
+                message: `${payload.new.display_name} joined the meeting`,
+                type: 'meeting'
+              });
             }
           }
         )
@@ -186,9 +203,17 @@ export default function MeetingRoom() {
             table: 'meeting_participants',
             filter: `meeting_id=eq.${id}`,
           },
-          (payload: any) => {
+          async (payload: any) => {
             if (payload.new.left_at && payload.new.user_id !== user.id) {
               toast.info(`${payload.new.display_name} left the meeting`);
+              
+              // Create notification
+              await supabase.from('notifications').insert({
+                user_id: user.id,
+                title: 'Participant Left',
+                message: `${payload.new.display_name} left the meeting`,
+                type: 'meeting'
+              });
             }
           }
         )

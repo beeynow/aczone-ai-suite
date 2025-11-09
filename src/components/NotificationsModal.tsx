@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bell, X, Trash2, Archive } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,95 +9,133 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Notification {
   id: string;
-  user_name: string;
-  user_avatar?: string;
-  action: string;
-  time: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: string;
   read: boolean;
-  action_button?: {
-    label: string;
-    action: () => void;
-  };
+  created_at: string;
 }
 
 export default function NotificationsModal() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      user_name: "Noah Anderson",
-      user_avatar: undefined,
-      action: "liked your post",
-      time: "2 hours ago",
-      read: false,
-    },
-    {
-      id: "2",
-      user_name: "Olivia Parker",
-      user_avatar: undefined,
-      action: "mentioned you in a comment.",
-      time: "3 hours ago",
-      read: false,
-    },
-    {
-      id: "3",
-      user_name: "Ethan Ramirez",
-      user_avatar: undefined,
-      action: "liked your post.",
-      time: "6 hours ago",
-      read: false,
-    },
-    {
-      id: "4",
-      user_name: "Lucas Mitchell",
-      user_avatar: undefined,
-      action: "followed you.",
-      time: "8 hours ago",
-      read: false,
-      action_button: {
-        label: "Follow Back",
-        action: () => toast.success("Followed back!"),
-      },
-    },
-    {
-      id: "5",
-      user_name: "Emily Johnson",
-      user_avatar: undefined,
-      action: "liked your post.",
-      time: "1 day ago",
-      read: true,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetchNotifications();
+      subscribeToNotifications();
+    }
+  }, [open]);
+
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const subscribeToNotifications = () => {
+    const channel = supabase
+      .channel('notifications_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+
+      if (error) throw error;
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, read: true } : n))
+      );
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    toast.success("All notifications marked as read");
+  const markAllAsRead = async () => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('read', false);
+
+      if (error) throw error;
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      toast.success("All notifications marked as read");
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      toast.error("Failed to mark all as read");
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    toast.success("Notification removed");
+  const deleteNotification = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      toast.success("Notification removed");
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast.error("Failed to delete notification");
+    }
   };
 
   const getFilteredNotifications = () => {
     if (activeTab === "all") return notifications;
-    if (activeTab === "following") return notifications.filter(n => n.action.includes("followed"));
-    if (activeTab === "archive") return notifications.filter(n => n.read);
-    return notifications;
+    if (activeTab === "unread") return notifications.filter(n => !n.read);
+    return notifications.filter(n => n.type === activeTab);
+  };
+
+  const getTimeAgo = (date: string) => {
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
   };
 
   const filteredNotifications = getFilteredNotifications();
@@ -149,23 +187,26 @@ export default function NotificationsModal() {
                 )}
               </TabsTrigger>
               <TabsTrigger 
-                value="following"
+                value="unread"
                 className="relative pb-3 px-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary font-semibold"
               >
-                Following
-              </TabsTrigger>
-              <TabsTrigger 
-                value="archive"
-                className="relative pb-3 px-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary font-semibold"
-              >
-                Archive
+                Unread
+                {unreadCount > 0 && (
+                  <Badge className="ml-2 h-5 px-2 bg-primary text-primary-foreground font-normal rounded-full">
+                    {unreadCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value={activeTab} className="m-0 focus-visible:outline-none focus-visible:ring-0">
             <ScrollArea className="h-[450px]">
-              {filteredNotifications.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : filteredNotifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                   <div className="bg-muted/50 p-6 rounded-2xl mb-4">
                     <Bell className="w-12 h-12 text-muted-foreground" />
@@ -178,36 +219,35 @@ export default function NotificationsModal() {
                   {filteredNotifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className="px-6 py-4 hover:bg-muted/30 transition-colors duration-150 flex items-start gap-4 group relative"
+                      className={`px-6 py-4 hover:bg-muted/30 transition-colors duration-150 flex items-start gap-4 group relative ${
+                        !notification.read ? 'bg-primary/5' : ''
+                      }`}
                     >
-                      <Avatar className="h-12 w-12 border-2 border-border/20">
-                        <AvatarImage src={notification.user_avatar} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {notification.user_name.split(" ").map(n => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      
                       <div className="flex-1 min-w-0 pt-1">
-                        <p className="text-sm text-foreground">
-                          <span className="font-semibold">{notification.user_name}</span>{" "}
-                          <span className="text-muted-foreground">{notification.action}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">{notification.time}</p>
-                        {notification.action_button && (
-                          <Button
-                            size="sm"
-                            className="mt-3 h-8 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg"
-                            onClick={notification.action_button.action}
-                          >
-                            {notification.action_button.label}
-                          </Button>
-                        )}
+                        <p className="font-semibold text-sm text-foreground">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                        <p className="text-xs text-muted-foreground mt-2">{getTimeAgo(notification.created_at)}</p>
                       </div>
 
                       <div className="flex items-center gap-2 pt-1">
                         {!notification.read && (
-                          <div className="h-2.5 w-2.5 rounded-full bg-primary" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => markAsRead(notification.id)}
+                          >
+                            <div className="h-2.5 w-2.5 rounded-full bg-primary" />
+                          </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100"
+                          onClick={() => deleteNotification(notification.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -218,33 +258,25 @@ export default function NotificationsModal() {
         </Tabs>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-              onClick={() => toast.info("Archive feature coming soon")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-              onClick={() => toast.info("Settings feature coming soon")}
-            >
-              <Archive className="h-4 w-4" />
-            </Button>
-          </div>
           <Button
             variant="ghost"
             size="sm"
-            className="text-primary hover:text-primary hover:bg-primary/10 font-semibold text-sm h-8"
-            onClick={markAllAsRead}
+            className="text-muted-foreground hover:text-foreground h-8"
+            onClick={() => setOpen(false)}
           >
-            <Bell className="h-4 w-4 mr-2" />
-            Mark all as read
+            Close
           </Button>
+          {unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary hover:bg-primary/10 font-semibold text-sm h-8"
+              onClick={markAllAsRead}
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              Mark all as read
+            </Button>
+          )}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
