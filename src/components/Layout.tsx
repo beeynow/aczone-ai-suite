@@ -21,6 +21,8 @@ import {
   Brain,
   BarChart3,
   FileCheck,
+  Trophy,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,8 @@ const navigation = [
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Resume Analyzer", href: "/resume-analyzer", icon: FileCheck },
   { name: "Certificates", href: "/certificates", icon: Award },
+  { name: "Leaderboard", href: "/leaderboard", icon: Trophy, badge: "NEW" },
+  { name: "Referrals", href: "/referrals", icon: Gift },
 ];
 
 const bottomNavigation = [
