@@ -1213,6 +1213,14 @@ export type Database = {
         Args: { _interview_id: string; _user_id: string }
         Returns: boolean
       }
+      is_meeting_host: {
+        Args: { _meeting_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_meeting_participant: {
+        Args: { _meeting_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_org_ids: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {

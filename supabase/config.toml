@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.check-achievements]
 verify_jwt = false
+
+[functions.meeting-voice-relay]
+verify_jwt = false

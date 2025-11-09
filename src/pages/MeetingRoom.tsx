@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Download, Copy, Share2 } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Users, Sparkles, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import ParticipantsList from "@/components/ParticipantsList";
+import { VoiceMeetingClient } from "@/utils/VoiceMeeting";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface Participant {
   id: string;
+  user_id: string;
   display_name: string;
   is_host: boolean;
   is_muted: boolean;
@@ -40,7 +42,12 @@ export default function MeetingRoom() {
   const [currentUserName, setCurrentUserName] = useState<string>('');
   const [transcript, setTranscript] = useState<string>("");
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [aiTranscript, setAiTranscript] = useState<string>("");
+  const [voiceClient, setVoiceClient] = useState<VoiceMeetingClient | null>(null);
+  const [isVoiceConnected, setIsVoiceConnected] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const PROJECT_ID = "zhiiqdczslrnvlyflmke";
 
   useEffect(() => {
     if (id) {
@@ -49,12 +56,38 @@ export default function MeetingRoom() {
       joinMeeting();
       subscribeToParticipants();
       subscribeToChat();
+      initializeVoice();
     }
 
     return () => {
       leaveMeeting();
+      voiceClient?.disconnect();
     };
   }, [id]);
+
+  const initializeVoice = async () => {
+    const client = new VoiceMeetingClient(
+      PROJECT_ID,
+      (text, isFinal) => {
+        if (isFinal) {
+          setAiTranscript(prev => prev + " " + text);
+          setTranscript(prev => prev + "\n[AI Assistant]: " + text);
+        }
+      },
+      (isSpeaking) => {
+        setIsAiSpeaking(isSpeaking);
+      },
+      (error) => {
+        console.error("Voice error:", error);
+        toast.error(error);
+      }
+    );
+    
+    setVoiceClient(client);
+    await client.connect();
+    setIsVoiceConnected(true);
+    toast.success("AI assistant joined the meeting");
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -115,7 +148,7 @@ export default function MeetingRoom() {
         .eq('user_id', user.id)
         .single();
 
-      await (supabase as any)
+      const { error: insertError } = await (supabase as any)
         .from('meeting_participants')
         .insert({
           meeting_id: id,
@@ -124,7 +157,42 @@ export default function MeetingRoom() {
           is_host: meeting?.host_id === user.id,
         });
 
-      toast.success('Joined meeting');
+      if (insertError) {
+        console.error("Error inserting participant:", insertError);
+      }
+
+      // Subscribe to participant join/leave events
+      const channel = supabase
+        .channel(`participant_events_${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'meeting_participants',
+            filter: `meeting_id=eq.${id}`,
+          },
+          (payload) => {
+            if (payload.new.user_id !== user.id) {
+              toast.success(`${payload.new.display_name} joined the meeting`);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'meeting_participants',
+            filter: `meeting_id=eq.${id}`,
+          },
+          (payload: any) => {
+            if (payload.new.left_at && payload.new.user_id !== user.id) {
+              toast.info(`${payload.new.display_name} left the meeting`);
+            }
+          }
+        )
+        .subscribe();
     } catch (error) {
       console.error('Error joining meeting:', error);
     }
@@ -140,8 +208,18 @@ export default function MeetingRoom() {
         .update({ left_at: new Date().toISOString() })
         .eq('meeting_id', id)
         .eq('user_id', user.id);
+      
+      voiceClient?.disconnect();
     } catch (error) {
       console.error('Error leaving meeting:', error);
+    }
+  };
+
+  const toggleMute = () => {
+    if (voiceClient) {
+      const muted = voiceClient.toggleMute();
+      setIsAudioOn(!muted);
+      toast.success(muted ? "Microphone muted" : "Microphone unmuted");
     }
   };
 
@@ -321,9 +399,7 @@ export default function MeetingRoom() {
   if (!meeting) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Card className="p-8">
-          <p className="text-muted-foreground">Loading meeting...</p>
-        </Card>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -372,7 +448,17 @@ export default function MeetingRoom() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Video Area */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-muted/20 p-4">
+        <div className="flex-1 flex flex-col items-center justify-center bg-muted/20 p-4 relative">
+          {/* AI Assistant Indicator */}
+          {isVoiceConnected && (
+            <div className="absolute top-4 right-4 z-10">
+              <Badge className={`flex items-center gap-2 ${isAiSpeaking ? 'bg-primary animate-pulse' : 'bg-muted'}`}>
+                <Sparkles className="w-3 h-3" />
+                {isAiSpeaking ? 'AI Speaking...' : 'AI Listening'}
+              </Badge>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-6xl w-full">
             {participants.map((participant) => (
               <Card key={participant.id} className="aspect-video flex items-center justify-center relative">
@@ -389,13 +475,26 @@ export default function MeetingRoom() {
                     )}
                   </div>
                 </div>
-                {participant.is_muted && (
+                {!isAudioOn && participant.user_id === currentUserId && (
                   <div className="absolute bottom-2 right-2 p-1 rounded-full bg-red-500">
                     <MicOff className="w-3 h-3 text-white" />
                   </div>
                 )}
               </Card>
             ))}
+            
+            {/* AI Assistant Card */}
+            <Card className="aspect-video flex items-center justify-center relative border-2 border-primary/30">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-accent/30">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-2">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                  <p className="font-medium text-sm">AI Assistant</p>
+                  <Badge variant="secondary" className="text-xs mt-1">Active</Badge>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
 
@@ -438,8 +537,9 @@ export default function MeetingRoom() {
           <Button
             variant={isAudioOn ? "default" : "destructive"}
             size="lg"
-            onClick={() => setIsAudioOn(!isAudioOn)}
+            onClick={toggleMute}
             className="rounded-full"
+            disabled={!isVoiceConnected}
           >
             {isAudioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
           </Button>
