@@ -105,70 +105,74 @@ export default function NotificationsModal() {
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="w-80 md:w-96 p-0 border-2 shadow-2xl backdrop-blur-sm bg-card/95"
+        className="w-80 md:w-96 p-0 border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] backdrop-blur-xl bg-background/95 rounded-2xl overflow-hidden"
         sideOffset={8}
       >
-        <div className="flex items-center justify-between p-4 border-b-2 border-border/50 bg-gradient-to-r from-primary/5 to-accent/5">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <Bell className="w-5 h-5 text-primary" />
-            Notifications
+        <div className="flex items-center justify-between p-5 border-b border-border/30 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/5">
+          <h3 className="font-bold text-lg flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-primary/10 backdrop-blur-sm">
+              <Bell className="w-[1.1rem] h-[1.1rem] text-primary" />
+            </div>
+            <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              Notifications
+            </span>
           </h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllAsRead}
-              className="text-xs hover:bg-primary/10 transition-smooth"
+              className="text-xs h-8 px-3 hover:bg-primary/10 hover:text-primary transition-all duration-200 rounded-lg font-medium"
             >
-              <Check className="w-3 h-3 mr-1" />
+              <Check className="w-3.5 h-3.5 mr-1.5" />
               Mark all read
             </Button>
           )}
         </div>
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[420px]">
           {notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="bg-primary/10 p-4 rounded-full mb-4">
-                <Bell className="w-12 h-12 text-primary" />
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+              <div className="bg-gradient-to-br from-primary/20 to-accent/10 p-6 rounded-2xl mb-5 shadow-inner">
+                <Bell className="w-14 h-14 text-primary" />
               </div>
-              <p className="text-sm font-medium">No notifications yet</p>
-              <p className="text-xs text-muted-foreground mt-1">You're all caught up! 🎉</p>
+              <p className="text-base font-semibold text-foreground">No notifications yet</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-[200px]">You're all caught up! 🎉</p>
             </div>
           ) : (
-            <div className="divide-y divide-border/50">
+            <div className="divide-y divide-border/30">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 hover:bg-accent/30 transition-smooth cursor-pointer relative ${
-                    !notification.read ? "bg-primary/10 border-l-4 border-l-primary" : ""
+                  className={`p-5 hover:bg-accent/20 transition-all duration-200 cursor-pointer relative group ${
+                    !notification.read ? "bg-primary/5 border-l-[3px] border-l-primary shadow-sm" : ""
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 p-2 rounded-lg bg-background/50 shadow-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="mt-0.5 p-2.5 rounded-xl bg-gradient-to-br from-background/80 to-background/60 shadow-md border border-border/20">
                       {getIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-sm truncate">
+                        <h4 className="font-semibold text-[0.9rem] truncate text-foreground">
                           {notification.title}
                         </h4>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 -mt-1 hover:bg-destructive/10 hover:text-destructive transition-smooth"
+                          className="h-7 w-7 -mt-0.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all duration-200 rounded-lg"
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteNotification(notification.id);
                           }}
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
+                      <p className="text-[0.8rem] text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
                         {notification.message}
                       </p>
-                      <div className="flex items-center gap-3 mt-3">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md">
+                      <div className="flex items-center gap-3 mt-3.5">
+                        <span className="text-[0.75rem] text-muted-foreground/90 flex items-center gap-1.5 bg-muted/40 px-2.5 py-1.5 rounded-lg border border-border/20">
                           <Clock className="w-3 h-3" />
                           {getTimeAgo(notification.created_at)}
                         </span>
@@ -176,13 +180,13 @@ export default function NotificationsModal() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 text-xs px-2 hover:bg-primary/10 hover:text-primary transition-smooth"
+                            className="h-7 text-[0.75rem] px-3 hover:bg-primary/10 hover:text-primary transition-all duration-200 rounded-lg font-medium"
                             onClick={(e) => {
                               e.stopPropagation();
                               markAsRead(notification.id);
                             }}
                           >
-                            <Check className="w-3 h-3 mr-1" />
+                            <Check className="w-3 h-3 mr-1.5" />
                             Mark read
                           </Button>
                         )}

@@ -214,20 +214,6 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Theme Toggle */}
-        <div className="p-4 border-t border-border flex items-center justify-center">
-          <Button
-            variant="ghost"
-            size={sidebarOpen ? "default" : "icon"}
-            onClick={() => setDarkMode(!darkMode)}
-            className="w-full relative group hover:bg-accent transition-smooth"
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            {sidebarOpen && <span className="ml-2">{darkMode ? "Dark" : "Light"} Mode</span>}
-          </Button>
-        </div>
-
         {/* Footer */}
         {sidebarOpen && (
           <div className="p-4 text-xs text-center text-muted-foreground border-t border-border">
@@ -268,6 +254,18 @@ export default function Layout() {
               <div className="hidden sm:block">
                 <JoinMeetingDialog />
               </div>
+
+              {/* Theme Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDarkMode(!darkMode)}
+                className="h-9 w-9 relative"
+              >
+                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
 
               {/* Notifications */}
               <NotificationsModal />

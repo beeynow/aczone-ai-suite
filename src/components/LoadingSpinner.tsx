@@ -1,4 +1,4 @@
-import logo from "@/assets/logo.jpeg";
+import logo from "@/assets/loading-logo.png";
 
 interface LoadingSpinnerProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -18,8 +18,7 @@ export default function LoadingSpinner({ size = "md", className = "" }: LoadingS
       <img 
         src={logo} 
         alt="Loading..." 
-        className={`${sizeClasses[size]} animate-spin`}
-        style={{ filter: 'brightness(1) contrast(1.1)' }}
+        className={`${sizeClasses[size]} animate-spin opacity-80 dark:opacity-100`}
       />
     </div>
   );
