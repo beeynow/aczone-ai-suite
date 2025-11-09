@@ -36,28 +36,29 @@ export default function CreateMeeting() {
       }
 
       const roomId = `meeting_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const meetingId = crypto.randomUUID();
 
-      const { data, error } = await (supabase as any)
+      const { error } = await (supabase as any)
         .from('meeting_sessions')
         .insert([
           {
+            id: meetingId,
             title: formData.title,
             description: formData.description,
             room_id: roomId,
             host_id: user.id,
-            max_participants: formData.max_participants,
+            max_participants: Number.isFinite(formData.max_participants) ? formData.max_participants : 10,
           },
-        ])
-        .select()
-        .single();
+        ]);
 
       if (error) throw error;
 
       toast.success("Meeting created successfully!");
-      navigate(`/meeting/${data.id}`);
+      navigate(`/meeting/${meetingId}`);
     } catch (error) {
       console.error('Error creating meeting:', error);
-      toast.error("Failed to create meeting");
+      const message = error instanceof Error ? error.message : (typeof error === 'object' ? JSON.stringify(error) : String(error));
+      toast.error(`Failed to create meeting: ${message}`);
     } finally {
       setLoading(false);
     }
