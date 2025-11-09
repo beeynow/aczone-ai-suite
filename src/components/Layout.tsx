@@ -41,6 +41,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { HelpChat } from "@/components/HelpChat";
 import JoinMeetingDialog from "@/components/JoinMeetingDialog";
+import NotificationsModal from "@/components/NotificationsModal";
+import PriceRangeSlider from "@/components/PriceRangeSlider";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -244,76 +247,79 @@ export default function Layout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
-          <div className="flex items-center gap-4 flex-1">
+        <header className="sticky top-0 z-40 h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <div className="flex h-full items-center gap-2 md:gap-4 px-3 md:px-6">
+            {/* Mobile Menu Toggle */}
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="shrink-0"
             >
-              {sidebarOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
 
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search across tools..."
-                className="pl-10 bg-muted/50 border-muted"
-              />
+            {/* Search Bar */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  className="pl-10 bg-muted/50 border-muted h-9"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden md:block">
-              <JoinMeetingDialog />
+            {/* Right Actions */}
+            <div className="flex items-center gap-1 md:gap-2 shrink-0">
+              {/* Join Meeting - Hidden on small screens */}
+              <div className="hidden sm:block">
+                <JoinMeetingDialog />
+              </div>
+
+              {/* Notifications */}
+              <NotificationsModal />
+
+              {/* User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 hover:bg-muted"
+                  >
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-primary text-white text-sm">
+                        {user.email?.substring(0, 2).toUpperCase() || "AZ"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="hidden md:block text-left">
+                      <div className="text-sm font-medium">
+                        {user.email?.split("@")[0] || "User"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {user.email}
+                      </div>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2 hover:bg-muted"
-                >
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-gradient-primary text-white text-sm">
-                      {user.email?.substring(0, 2).toUpperCase() || "AZ"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="hidden md:block text-left">
-                    <div className="text-sm font-medium">
-                      {user.email?.split("@")[0] || "User"}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {user.email}
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </header>
 
@@ -325,106 +331,12 @@ export default function Layout() {
 
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center">Choose Your Plan</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-center">Purchase Points</DialogTitle>
           </DialogHeader>
-          <div className="grid md:grid-cols-3 gap-6 py-6">
-            {/* Free Plan */}
-            <div className="border rounded-lg p-6 bg-card">
-              <h3 className="text-lg font-semibold mb-2">Free</h3>
-              <div className="mb-4">
-                <span className="text-3xl font-bold">₦0</span>
-                <span className="text-muted-foreground">/month</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>5 interviews per month</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Basic AI interviewer</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>15 minutes per interview</span>
-                </li>
-              </ul>
-              <Button variant="outline" className="w-full" disabled>
-                Current Plan
-              </Button>
-            </div>
-
-            {/* Pro Plan */}
-            <div className="border-2 border-primary rounded-lg p-6 bg-card relative">
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary text-white">
-                Most Popular
-              </Badge>
-              <h3 className="text-lg font-semibold mb-2">Pro</h3>
-              <div className="mb-4">
-                <span className="text-3xl font-bold">₦5,000</span>
-                <span className="text-muted-foreground">/month</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Unlimited interviews</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Advanced AI interviewer</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>60 minutes per interview</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Video recording</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Priority support</span>
-                </li>
-              </ul>
-              <Button className="w-full gradient-primary text-white">
-                Upgrade to Pro
-              </Button>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="border rounded-lg p-6 bg-card">
-              <h3 className="text-lg font-semibold mb-2">Enterprise</h3>
-              <div className="mb-4">
-                <span className="text-3xl font-bold">Custom</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Everything in Pro</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Custom AI models</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Team collaboration</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>API access</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5" />
-                  <span>Dedicated support</span>
-                </li>
-              </ul>
-              <Button variant="outline" className="w-full">
-                Contact Sales
-              </Button>
-            </div>
+          <div className="py-6">
+            <PriceRangeSlider />
           </div>
         </DialogContent>
       </Dialog>

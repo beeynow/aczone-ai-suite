@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Loading...</p>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
