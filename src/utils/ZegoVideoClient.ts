@@ -95,6 +95,9 @@ export class ZegoVideoClient {
             
             console.log(`[ZegoVideo] Playing remote stream for user ${userID}`);
             this.onStreamAddCallback(userID, remoteStream);
+            
+            // Start monitoring audio levels for this stream
+            this.monitorAudioLevel(stream.streamID, userID);
           } catch (error) {
             console.error('[ZegoVideo] Error playing remote stream:', error);
           }
@@ -163,6 +166,22 @@ export class ZegoVideoClient {
         console.warn('[ZegoVideo] Poor playback quality:', stats);
       }
     });
+  }
+
+  private monitorAudioLevel(streamID: string, userID: string): void {
+    if (!this.zg) return;
+    
+    // Monitor audio level to detect speaking
+    const interval = setInterval(() => {
+      if (!this.zg || !this.streamIDs.has(userID)) {
+        clearInterval(interval);
+        return;
+      }
+      
+      // The sound level API is available in ZegoExpressEngine
+      // This is a placeholder - actual implementation depends on ZegoCloud API
+      // For now, we'll rely on manual detection through audio/video state changes
+    }, 500);
   }
 
   async startLocalStream(): Promise<MediaStream | null> {

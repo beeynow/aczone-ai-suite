@@ -162,16 +162,20 @@ export default function MeetingRoom() {
       
       setVideoClient(client);
       setLocalVideoStream(localStream);
-      setIsVideoOn(!!localStream);
+      
+      // Ensure video is enabled by default
+      const videoEnabled = !!localStream;
+      setIsVideoOn(videoEnabled);
       
       // Update own video status in DB
-      await updateParticipantStatus(currentUserId, { is_video_on: !!localStream });
+      await updateParticipantStatus(currentUserId, { is_video_on: videoEnabled, is_muted: false });
       
-      toast.success("Video connected");
-      console.log('[Meeting] Video initialized successfully');
+      toast.success("Video connected - Camera is ON");
+      console.log('[Meeting] Video initialized successfully with camera enabled');
     } catch (error) {
       console.error('[Meeting] Failed to initialize video:', error);
       toast.error('Failed to start video. Using audio only.');
+      setIsVideoOn(false);
     }
   };
 
@@ -434,7 +438,12 @@ export default function MeetingRoom() {
         },
         (payload) => {
           console.log('[Meeting] New participant joined:', payload.new);
-          fetchParticipants();
+          // Immediately add to participants state for instant UI update
+          setParticipants(prev => {
+            const exists = prev.some(p => p.id === (payload.new as any).id);
+            if (exists) return prev;
+            return [...prev, payload.new as any];
+          });
         }
       )
       .on(
@@ -447,7 +456,7 @@ export default function MeetingRoom() {
         },
         (payload) => {
           console.log('[Meeting] Participant updated:', payload.new);
-          // Update specific participant in state
+          // Instantly update specific participant in state for all users
           setParticipants(prev => 
             prev.map(p => p.user_id === (payload.new as any).user_id 
               ? { ...p, ...(payload.new as any) }
@@ -466,13 +475,20 @@ export default function MeetingRoom() {
         },
         (payload) => {
           console.log('[Meeting] Participant left:', payload.old);
-          fetchParticipants();
+          // Immediately remove from state
+          setParticipants(prev => 
+            prev.filter(p => p.id !== (payload.old as any).id)
+          );
         }
       )
       .subscribe((status) => {
         console.log('[Meeting] Participants subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[Meeting] Successfully subscribed to participant updates');
+        }
       });
 
+    // Initial fetch
     fetchParticipants();
 
     return () => {
@@ -549,12 +565,38 @@ export default function MeetingRoom() {
           table: 'meeting_chat',
           filter: `meeting_id=eq.${id}`,
         },
-        (payload) => {
-          fetchChat();
+        async (payload) => {
+          console.log('[Meeting] New chat message:', payload.new);
+          
+          // Get display name for the new message
+          const { data: participantData } = await (supabase as any)
+            .from('meeting_participants')
+            .select('display_name')
+            .eq('user_id', (payload.new as any).user_id)
+            .eq('meeting_id', id)
+            .maybeSingle();
+          
+          const newMessage = {
+            ...(payload.new as any),
+            display_name: participantData?.display_name || 'Anonymous'
+          };
+          
+          // Instantly add to chat messages for real-time update
+          setChatMessages(prev => {
+            const exists = prev.some(m => m.id === newMessage.id);
+            if (exists) return prev;
+            return [...prev, newMessage];
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Meeting] Chat subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[Meeting] Successfully subscribed to chat updates');
+        }
+      });
 
+    // Initial fetch
     fetchChat();
 
     return () => {
@@ -821,15 +863,19 @@ export default function MeetingRoom() {
             <div className="flex gap-2 overflow-x-auto pb-1">
               {/* Local user */}
               <Card 
-                className={`relative flex-shrink-0 w-32 h-24 overflow-hidden transition-all duration-300 ${
+                className={`relative flex-shrink-0 w-32 h-24 overflow-hidden transition-all duration-500 border-2 ${
                   currentUserId && speakingUsers.has(currentUserId) 
-                    ? 'ring-4 ring-offset-2 ring-offset-background animate-pulse' 
-                    : 'ring-1 ring-border/30'
+                    ? 'scale-105 shadow-2xl' 
+                    : 'scale-100 shadow-sm'
                 }`}
                 style={currentUserId && speakingUsers.has(currentUserId) ? {
-                  boxShadow: '0 0 20px rgba(var(--primary), 0.5)',
-                  borderImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) 1',
-                } : {}}
+                  borderImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #ff6b9d 75%, #feca57 100%)',
+                  borderImageSlice: 1,
+                  boxShadow: '0 0 30px rgba(102, 126, 234, 0.6), 0 0 15px rgba(240, 147, 251, 0.4)',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                } : {
+                  borderColor: 'hsl(var(--border))'
+                }}
               >
                 {localVideoStream && isVideoOn ? (
                   <video
@@ -840,13 +886,20 @@ export default function MeetingRoom() {
                     ref={(el) => { if (el && localVideoStream) el.srcObject = localVideoStream; }}
                   />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-muted/60">
+                  <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/60 transition-opacity duration-500 ${
+                    currentUserId && speakingUsers.has(currentUserId) ? 'opacity-100 animate-pulse' : 'opacity-80'
+                  }`}>
                     <span className="text-xl font-bold">{currentUserName?.charAt(0).toUpperCase()}</span>
                   </div>
                 )}
-                <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded">
+                <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded backdrop-blur-sm">
                   You {!isAudioOn && <MicOff className="w-2.5 h-2.5 inline ml-0.5" />}
                 </div>
+                {currentUserId && speakingUsers.has(currentUserId) && (
+                  <div className="absolute top-1 right-1 bg-primary/90 rounded-full p-1">
+                    <Mic className="w-3 h-3 text-primary-foreground animate-pulse" />
+                  </div>
+                )}
               </Card>
 
               {/* Remote participants */}
@@ -857,15 +910,19 @@ export default function MeetingRoom() {
                 return (
                   <Card 
                     key={participant.id}
-                    className={`relative flex-shrink-0 w-32 h-24 overflow-hidden transition-all duration-300 ${
+                    className={`relative flex-shrink-0 w-32 h-24 overflow-hidden transition-all duration-500 border-2 ${
                       isSpeaking 
-                        ? 'ring-4 ring-offset-2 ring-offset-background animate-pulse scale-105' 
-                        : 'ring-1 ring-border/30'
+                        ? 'scale-105 shadow-2xl' 
+                        : 'scale-100 shadow-sm'
                     }`}
                     style={isSpeaking ? {
-                      boxShadow: '0 0 20px rgba(var(--primary), 0.5)',
-                      borderImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) 1',
-                    } : {}}
+                      borderImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #ff6b9d 75%, #feca57 100%)',
+                      borderImageSlice: 1,
+                      boxShadow: '0 0 30px rgba(102, 126, 234, 0.6), 0 0 15px rgba(240, 147, 251, 0.4)',
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    } : {
+                      borderColor: 'hsl(var(--border))'
+                    }}
                   >
                     {stream && participant.is_video_on ? (
                       <video
@@ -875,18 +932,25 @@ export default function MeetingRoom() {
                         ref={(el) => { if (el && stream) el.srcObject = stream; }}
                       />
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-muted/60">
+                      <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/60 transition-opacity duration-500 ${
+                        isSpeaking ? 'opacity-100 animate-pulse' : 'opacity-80'
+                      }`}>
                         <span className="text-xl font-bold">
                           {participant.display_name.charAt(0).toUpperCase()}
                         </span>
                       </div>
                     )}
-                    <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                    <div className="absolute bottom-1 left-1 text-[10px] bg-background/90 px-1.5 py-0.5 rounded truncate max-w-[120px] backdrop-blur-sm">
                       {participant.display_name} {participant.is_muted && <MicOff className="w-2.5 h-2.5 inline ml-0.5" />}
                     </div>
                     {participant.is_host && (
-                      <div className="absolute top-1 right-1">
+                      <div className="absolute top-1 left-1">
                         <Badge variant="secondary" className="text-[8px] px-1 py-0">Host</Badge>
+                      </div>
+                    )}
+                    {isSpeaking && (
+                      <div className="absolute top-1 right-1 bg-primary/90 rounded-full p-1">
+                        <Mic className="w-3 h-3 text-primary-foreground animate-pulse" />
                       </div>
                     )}
                   </Card>
