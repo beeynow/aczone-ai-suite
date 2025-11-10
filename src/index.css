@@ -6,6 +6,34 @@
 All colors MUST be HSL.
 */
 
+/* Performance optimizations */
+* {
+  /* GPU acceleration for smoother animations */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Optimize font loading */
+@font-face {
+  font-family: 'system-ui';
+  font-display: swap;
+}
+
+/* Content visibility for better rendering performance */
+.lazy-load {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Prevent layout shift for images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 @layer base {
   :root {
     --background: 210 40% 98%;

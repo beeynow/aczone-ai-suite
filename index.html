@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Preconnect to critical domains for faster resource loading -->
+    <link rel="preconnect" href="https://zhiiqdczslrnvlyflmke.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+    <link rel="dns-prefetch" href="https://zhiiqdczslrnvlyflmke.supabase.co" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#00b4d8" />
+    <link rel="apple-touch-icon" href="/favicon.ico" />
+    
     <title>TryInterview - AI Interview Practice Platform</title>
     <meta
       name="description"
@@ -25,7 +37,45 @@
       content="https://lovable.dev/opengraph-image-p98pqg.png"
     />
 
-    <!-- Google tag (gtag.js) -->
+    <!-- Critical inline styles for FCP optimization -->
+    <style>
+      /* Critical CSS for initial render */
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      /* Loading spinner for initial load */
+      .initial-loader {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 48px;
+        height: 48px;
+        border: 4px solid rgba(0, 180, 216, 0.1);
+        border-top-color: rgb(0, 180, 216);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+      }
+      
+      /* Prevent layout shift */
+      img { content-visibility: auto; }
+    </style>
+
+    <!-- Google tag (gtag.js) - Async loading for better performance -->
     <script
       async
       src="https://www.googletagmanager.com/gtag/js?id=G-SB2CTEKWE5"
@@ -36,7 +86,6 @@
         dataLayer.push(arguments);
       }
       gtag("js", new Date());
-
       gtag("config", "G-SB2CTEKWE5");
     </script>
 
@@ -49,7 +98,44 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Initial loading indicator for better perceived performance -->
+      <div class="initial-loader"></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Performance monitoring -->
+    <script>
+      // Monitor Core Web Vitals
+      if ('PerformanceObserver' in window) {
+        // Largest Contentful Paint (LCP)
+        const lcpObserver = new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          const lastEntry = entries[entries.length - 1];
+          console.log('LCP:', lastEntry.renderTime || lastEntry.loadTime);
+        });
+        lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+
+        // First Input Delay (FID)
+        const fidObserver = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            console.log('FID:', entry.processingStart - entry.startTime);
+          });
+        });
+        fidObserver.observe({ entryTypes: ['first-input'] });
+
+        // Cumulative Layout Shift (CLS)
+        let clsScore = 0;
+        const clsObserver = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            if (!entry.hadRecentInput) {
+              clsScore += entry.value;
+              console.log('CLS:', clsScore);
+            }
+          });
+        });
+        clsObserver.observe({ entryTypes: ['layout-shift'] });
+      }
+    </script>
   </body>
 </html>
