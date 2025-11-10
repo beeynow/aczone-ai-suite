@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, RefreshCw, Play, Target, TrendingUp } from "lucide-react";
+import { Sparkles, RefreshCw, Play, Target, TrendingUp, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 type Category = 'tech' | 'medical' | 'law' | 'finance' | 'business' | 'education' | 'engineering' | 'sales' | 'marketing' | 'other';
@@ -36,6 +36,7 @@ export default function QuestionBank() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('beginner');
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
 
   useEffect(() => {
@@ -71,6 +72,48 @@ export default function QuestionBank() {
       const randomIndex = Math.floor(Math.random() * questions.length);
       setSelectedQuestion(questions[randomIndex]);
       toast.success('New question selected!');
+    }
+  };
+
+  const generateMoreQuestions = async () => {
+    setGenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in to generate questions');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            category: selectedCategory,
+            difficulty: selectedDifficulty,
+            count: 5,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to generate questions');
+      }
+
+      const { questions: newQuestions } = await response.json();
+      
+      toast.success(`Generated ${newQuestions.length} new questions!`);
+      await loadQuestions();
+      
+    } catch (error) {
+      console.error('Error generating questions:', error);
+      toast.error('Failed to generate questions');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -168,16 +211,27 @@ export default function QuestionBank() {
                   {difficultyInfo?.label}
                 </Badge>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={regenerateQuestion}
-                disabled={loading || questions.length <= 1}
-                className="hover:bg-primary hover:text-primary-foreground"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                New Question
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={regenerateQuestion}
+                  disabled={loading || questions.length <= 1}
+                  className="hover:bg-primary hover:text-primary-foreground"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Shuffle
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={generateMoreQuestions}
+                  disabled={generating}
+                  className="bg-gradient-to-r from-primary to-primary/80"
+                >
+                  <Plus className={`w-4 h-4 mr-2 ${generating ? 'animate-spin' : ''}`} />
+                  Generate More
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-6">
