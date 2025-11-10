@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Sparkles, Download, Loader2, Upload, X, History, Target, Brain, TrendingUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import mammoth from "mammoth";
+import ResumeTemplates from "@/components/ResumeTemplates";
 
 export default function ResumeAnalyzer() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -164,12 +165,19 @@ export default function ResumeAnalyzer() {
       }
 
       toast.success('Resume analyzed successfully!');
-    } catch (error) {
-      console.error('Error analyzing resume:', error);
-      toast.error('Failed to analyze resume');
-    } finally {
-      setAnalyzing(false);
-    }
+      } catch (error: any) {
+        console.error('Error analyzing resume:', error);
+        const message = typeof error === 'string' ? error : (error?.message || error?.error || 'Failed to analyze resume');
+        if (String(message).includes('Rate limit')) {
+          toast.error('AI rate limit reached. Please try again shortly.');
+        } else if (String(message).includes('Payment')) {
+          toast.error('AI credits exhausted. Please add credits to your workspace.');
+        } else {
+          toast.error(message);
+        }
+      } finally {
+        setAnalyzing(false);
+      }
   };
 
   const downloadImprovedResume = () => {
@@ -277,6 +285,13 @@ export default function ResumeAnalyzer() {
                       Select File
                     </label>
                   </Button>
+                  <div className="mt-3">
+                    <ResumeTemplates onSelect={(text) => {
+                      setResumeText(text);
+                      setAnalysis(null);
+                      setActiveTab("analyze");
+                    }} />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">

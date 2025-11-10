@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.meeting-voice-relay]
 verify_jwt = false
+
+[functions.analyze-resume]
+verify_jwt = false
