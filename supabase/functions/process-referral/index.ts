@@ -21,18 +21,34 @@ serve(async (req) => {
 
     console.log("Processing referral:", { referralCode, newUserId });
 
+    if (!referralCode || !newUserId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing referralCode or newUserId' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
     // Find the referrer
     const { data: referralData, error: referralError } = await supabase
       .from('referral_system')
       .select('*')
       .eq('referral_code', referralCode)
+      .eq('signup_completed', false)
       .single();
 
     if (referralError || !referralData) {
-      console.log("Referral code not found:", referralCode);
+      console.log("Referral code not found or already used:", referralCode);
       return new Response(
-        JSON.stringify({ success: false, message: "Invalid referral code" }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Invalid or already used referral code" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    // Prevent self-referral
+    if (referralData.referrer_id === newUserId) {
+      return new Response(
+        JSON.stringify({ error: 'Cannot refer yourself' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
@@ -46,19 +62,19 @@ serve(async (req) => {
       })
       .eq('id', referralData.id);
 
-    // Award points to referrer
-    const { data: pointsData } = await supabase
+    // Award 10 points to referrer
+    const { data: referrerPoints } = await supabase
       .from('user_points')
       .select('*')
       .eq('user_id', referralData.referrer_id)
       .single();
 
-    if (pointsData) {
+    if (referrerPoints) {
       await supabase
         .from('user_points')
         .update({
-          total_points: pointsData.total_points + 10,
-          referrals_count: pointsData.referrals_count + 1,
+          total_points: referrerPoints.total_points + 10,
+          referrals_count: referrerPoints.referrals_count + 1,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', referralData.referrer_id);
@@ -72,13 +88,58 @@ serve(async (req) => {
         });
     }
 
-    // Update leaderboard
-    await updateLeaderboard(supabase, referralData.referrer_id);
+    // Award 10 points to new user
+    const { data: newUserPoints } = await supabase
+      .from('user_points')
+      .select('*')
+      .eq('user_id', newUserId)
+      .single();
 
-    console.log("Referral processed successfully");
+    if (newUserPoints) {
+      await supabase
+        .from('user_points')
+        .update({
+          total_points: newUserPoints.total_points + 10,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', newUserId);
+    } else {
+      await supabase
+        .from('user_points')
+        .insert({
+          user_id: newUserId,
+          total_points: 10
+        });
+    }
+
+    // Update leaderboard for both users
+    await updateLeaderboard(supabase, referralData.referrer_id);
+    await updateLeaderboard(supabase, newUserId);
+
+    // Create notification for referrer
+    const { data: newUserProfile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('user_id', newUserId)
+      .single();
+
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: referralData.referrer_id,
+        title: 'Referral Reward',
+        message: `${newUserProfile?.username || 'A new user'} joined using your referral code! You earned 10 points.`,
+        type: 'reward'
+      });
+
+    console.log("Referral processed successfully - both users earned 10 points");
 
     return new Response(
-      JSON.stringify({ success: true, points: 10 }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Referral processed successfully! Both you and your referrer earned 10 points.',
+        points: 10 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

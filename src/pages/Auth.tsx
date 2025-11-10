@@ -118,11 +118,21 @@ export default function Auth() {
 
       // Process referral code if provided
       if (referralCode.trim()) {
-        const { error: referralError } = await supabase.rpc("process-referral", {
-          referral_code: referralCode,
-        });
-
-        if (referralError) {
+        try {
+          const { data, error } = await supabase.functions.invoke("process-referral", {
+            body: {
+              referralCode: referralCode.trim(),
+              newUserId: authData.user.id,
+            },
+          });
+          
+          if (!error && data?.success) {
+            toast({
+              title: "Welcome Bonus!",
+              description: data.message || "You earned 10 points for using a referral code!",
+            });
+          }
+        } catch (referralError) {
           console.error("Referral processing error:", referralError);
         }
       }

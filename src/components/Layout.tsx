@@ -24,6 +24,7 @@ import {
   Trophy,
   Gift,
   Video,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ const navigation = [
 ];
 
 const bottomNavigation = [
+  { name: "About Us", href: "/about", icon: Info },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

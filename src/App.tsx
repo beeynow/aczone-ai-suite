@@ -19,6 +19,7 @@ import ResumeAnalyzer from "./pages/ResumeAnalyzer";
 import Leaderboard from "./pages/Leaderboard";
 import Referrals from "./pages/Referrals";
 import Achievements from "./pages/Achievements";
+import About from "./pages/About";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="referrals" element={<Referrals />} />
             <Route path="achievements" element={<Achievements />} />
+            <Route path="about" element={<About />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
