@@ -68,6 +68,8 @@ Respond in JSON format:
   }
 }`;
 
+    console.log("Calling Lovable AI with resume text length:", resumeText.length);
+    
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -75,10 +77,10 @@ Respond in JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this resume and provide comprehensive feedback.` }
+          { role: "user", content: `Analyze this resume and provide comprehensive feedback. Return ONLY valid JSON with no markdown formatting or code blocks.` }
         ],
         temperature: 0.7,
       }),
@@ -86,24 +88,44 @@ Respond in JSON format:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI API error:", errorText);
-      throw new Error(`AI API error: ${response.status}`);
+      console.error("AI API error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      }
+      if (response.status === 402) {
+        throw new Error("AI service requires payment. Please contact support.");
+      }
+      
+      throw new Error(`AI service error: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log("Received AI response");
+    
     const content = data.choices[0]?.message?.content;
     
     if (!content) {
-      throw new Error("No content in AI response");
+      console.error("No content in AI response:", JSON.stringify(data));
+      throw new Error("No content received from AI");
     }
 
-    // Parse the JSON response
+    // Parse the JSON response - handle markdown code blocks if present
     let analysis;
     try {
-      analysis = JSON.parse(content);
+      // Remove markdown code blocks if present
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/```\n?/g, '');
+      }
+      
+      analysis = JSON.parse(cleanContent);
+      console.log("Successfully parsed AI analysis");
     } catch (e) {
-      console.error("Failed to parse AI response:", content);
-      throw new Error("Failed to parse AI response");
+      console.error("Failed to parse AI response:", content.substring(0, 500));
+      throw new Error("Failed to parse AI response. Please try again.");
     }
 
     return new Response(
