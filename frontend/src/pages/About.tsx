@@ -10,7 +10,7 @@ export default function About() {
         <title>About TryInterview - Founded by beeynow | AI Interview Coach Platform</title>
         <meta 
           name="description" 
-          content="Learn about TryInterview, the world's leading AI-powered mock interview practice platform founded by beeynow. Master your interview skills with our intelligent AI interview coach and join thousands of successful candidates worldwide." 
+          content="Learn about TryInterview, the world's leading AI-powered mock interview practice platform. Master your interview skills with our intelligent AI interview coach and join thousands of successful candidates worldwide." 
         />
         <meta 
           name="keywords" 
