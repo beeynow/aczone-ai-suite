@@ -47,7 +47,7 @@ const PriceRangeSlider = lazy(() => import("@/components/PriceRangeSlider"));
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Question Bank", href: "/question-bank", icon: Brain, badge: "NEW" },
   { name: "Join Interview", href: "/join-interview", icon: UserPlus },
   { name: "AI Interview", href: "/create-interview", icon: FileText },
@@ -90,7 +90,9 @@ export default function Layout() {
         setSession(session);
         setUser(session?.user ?? null);
         setAuthChecking(false);
-        if (!session && location.pathname !== '/') {
+        // Only guard authenticated app routes; allow public landing at '/'
+        const isPublic = location.pathname === '/' || location.pathname.startsWith('/auth') || location.pathname.startsWith('/join');
+        if (!session && !isPublic) {
           navigate('/auth');
         }
       }
@@ -100,7 +102,8 @@ export default function Layout() {
       .then(({ data: { session } }) => {
         setSession(session);
         setUser(session?.user ?? null);
-        if (!session && location.pathname !== '/') {
+        const isPublic = location.pathname === '/' || location.pathname.startsWith('/auth') || location.pathname.startsWith('/join');
+        if (!session && !isPublic) {
           navigate('/auth');
         }
       })
@@ -145,8 +148,7 @@ export default function Layout() {
   }
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
-    return location.pathname.startsWith(path);
+    return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
   return (
@@ -159,7 +161,7 @@ export default function Layout() {
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-border">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>

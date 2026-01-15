@@ -24,6 +24,7 @@ const Referrals = lazy(() => import("./pages/Referrals"));
 const Achievements = lazy(() => import("./pages/Achievements"));
 const About = lazy(() => import("./pages/About"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -37,11 +38,17 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<div className="min-h-screen grid place-items-center"><LoadingSpinner size="lg" /></div>}>
           <Routes>
+            {/* Public landing page at root */}
+            <Route path="/" element={<Landing />} />
+
+            {/* Public and utility routes */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/join-interview" element={<JoinInterview />} />
             <Route path="/join-meeting/:code" element={<JoinMeetingByCode />} />
+
+            {/* Authenticated app under Layout */}
             <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="create-interview" element={<CreateInterview />} />
               <Route path="interview/:id" element={<InterviewRoom />} />
               <Route path="create-meeting" element={<CreateMeeting />} />
@@ -57,6 +64,7 @@ const App = () => (
               <Route path="terms" element={<Terms />} />
               <Route path="settings" element={<Settings />} />
             </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
