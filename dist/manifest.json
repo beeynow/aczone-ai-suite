@@ -1,0 +1,17 @@
+{
+  "name": "TryInterview - AI Interview Practice Platform",
+  "short_name": "TryInterview",
+  "description": "Practice interviews with AI-powered coaching. Founded by beeynow.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00b4d8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -137,7 +137,7 @@ export default function Layout() {
   if (!user && location.pathname === '/') {
     const Landing = lazy(() => import('@/pages/Landing'));
     return (
-      <Suspense fallback={<div className="min-h-screen grid place-items-center"><LoadingSpinner size=\"lg\" /></div>}>
+      <Suspense fallback={<div className="min-h-screen grid place-items-center"><LoadingSpinner size="lg" /></div>}>
         <Landing />
       </Suspense>
     );
