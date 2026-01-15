@@ -11,11 +11,12 @@ window.addEventListener('load', () => {
   }, 0);
 });
 
-// Remove initial loader
+// Mount React app first
 const rootElement = document.getElementById("root")!;
-const loader = rootElement.querySelector('.initial-loader');
-if (loader) {
-  loader.remove();
-}
-
 createRoot(rootElement).render(<App />);
+
+// Remove initial loader right after first paint to avoid blank flashes
+requestAnimationFrame(() => {
+  const loader = rootElement.querySelector('.initial-loader');
+  if (loader) loader.remove();
+});

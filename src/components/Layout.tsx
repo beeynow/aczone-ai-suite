@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -41,9 +41,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { HelpChat } from "@/components/HelpChat";
-import JoinMeetingDialog from "@/components/JoinMeetingDialog";
-import NotificationsModal from "@/components/NotificationsModal";
-import PriceRangeSlider from "@/components/PriceRangeSlider";
+const JoinMeetingDialog = lazy(() => import("@/components/JoinMeetingDialog"));
+const NotificationsModal = lazy(() => import("@/components/NotificationsModal"));
+const PriceRangeSlider = lazy(() => import("@/components/PriceRangeSlider"));
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 const navigation = [
@@ -70,6 +70,7 @@ export default function Layout() {
   const [darkMode, setDarkMode] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,19 +86,23 @@ export default function Layout() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        // If auth state changes after initial check, we are no longer loading
+        setAuthChecking(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (!session) {
-        navigate("/auth");
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (!session) {
+          navigate("/auth");
+        }
+      })
+      .finally(() => setAuthChecking(false));
 
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -114,6 +119,14 @@ export default function Layout() {
       navigate("/auth");
     }
   };
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   if (!user) {
     return null;
@@ -317,7 +330,9 @@ export default function Layout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto">
-          <Outlet />
+          <Suspense fallback={<div className="py-10 grid place-items-center"><LoadingSpinner size="md" /></div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 
