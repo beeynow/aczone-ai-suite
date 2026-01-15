@@ -89,8 +89,10 @@ export default function Layout() {
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        // If auth state changes after initial check, we are no longer loading
         setAuthChecking(false);
+        if (!session && location.pathname !== '/') {
+          navigate('/auth');
+        }
       }
     );
 
@@ -98,14 +100,14 @@ export default function Layout() {
       .then(({ data: { session } }) => {
         setSession(session);
         setUser(session?.user ?? null);
-        if (!session) {
-          navigate("/auth");
+        if (!session && location.pathname !== '/') {
+          navigate('/auth');
         }
       })
       .finally(() => setAuthChecking(false));
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -125,6 +127,16 @@ export default function Layout() {
       <div className="min-h-screen grid place-items-center">
         <LoadingSpinner size="lg" />
       </div>
+    );
+  }
+
+  // If unauthenticated on home page, show landing page instead of app shell
+  if (!user && location.pathname === '/') {
+    const Landing = lazy(() => import('@/pages/Landing'));
+    return (
+      <Suspense fallback={<div className="min-h-screen grid place-items-center"><LoadingSpinner size=\"lg\" /></div>}>
+        <Landing />
+      </Suspense>
     );
   }
 

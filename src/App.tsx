@@ -23,6 +23,7 @@ const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const Referrals = lazy(() => import("./pages/Referrals"));
 const Achievements = lazy(() => import("./pages/Achievements"));
 const About = lazy(() => import("./pages/About"));
+const Terms = lazy(() => import("./pages/Terms"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="referrals" element={<Referrals />} />
               <Route path="achievements" element={<Achievements />} />
               <Route path="about" element={<About />} />
+              <Route path="terms" element={<Terms />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
